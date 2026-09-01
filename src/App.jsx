@@ -58,11 +58,13 @@ export default function App() {
               email: currentUser.email || "guest@campus.edu",
               department: "CSE",
               totalPoints: 0,
-              displayName: currentUser.email?.split('@')[0] || "Athlete"
+              displayName: currentUser.displayName || currentUser.email?.split('@')[0] || "Athlete"
             });
           }
+        }, (err) => {
+          console.warn("Profile listener fallback:", err);
         });
-      } else {
+      } else if (!userProfile) {
         setUserProfile(null);
         setWorkouts([]);
       }
@@ -81,13 +83,24 @@ export default function App() {
       if (unsubProfile) unsubProfile();
       unsubLeaderboard();
     };
-  }, [fetchUserWorkouts]);
+  }, [fetchUserWorkouts, userProfile]);
 
   const handleLogout = async () => {
-    await signOut(auth);
+    try {
+      await signOut(auth);
+    } catch (e) {
+      // Ignored for local demo sessions
+    }
     setUser(null);
     setUserProfile(null);
     setActiveTab('dashboard');
+  };
+
+  // Immediate Local Demo Session Handler
+  const handleGuestSession = (demoData) => {
+    setUser({ uid: demoData.uid, email: demoData.email });
+    setUserProfile(demoData);
+    setShowAuthModal(false);
   };
 
   return (
@@ -134,7 +147,10 @@ export default function App() {
 
       {/* Auth Modal */}
       {showAuthModal && (
-        <AuthModal onClose={() => setShowAuthModal(false)} />
+        <AuthModal 
+          onClose={() => setShowAuthModal(false)} 
+          onGuestLogin={handleGuestSession}
+        />
       )}
     </div>
   );
