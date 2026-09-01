@@ -1,0 +1,141 @@
+// src/lib/firebase.js
+import { initializeApp, getApps, getApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
+import { 
+  getFirestore, 
+  doc, 
+  setDoc, 
+  updateDoc, 
+  increment, 
+  collection, 
+  query, 
+  orderBy, 
+  limit, 
+  onSnapshot,
+  addDoc,
+  serverTimestamp 
+} from "firebase/firestore";
+
+// Official SIH26196 Firebase Configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyADeStIGn92CD11zHwoDKaS_gUWAuAj6bo",
+  authDomain: "aurafit-7a15f.firebaseapp.com",
+  projectId: "aurafit-7a15f",
+  storageBucket: "aurafit-7a15f.firebasestorage.app",
+  messagingSenderId: "234846462868",
+  appId: "1:234846462868:web:b8837f9b104dcf8c6a2581"
+};
+
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+
+export const auth = getAuth(app);
+export const db = getFirestore(app);
+
+/* ==========================================================================
+   AuraFit Backend Logic — Module Integration
+   ========================================================================== */
+
+/**
+ * Initialize or update user profile with department on signup
+ */
+export async function createUserProfile(userId, email, department = "CSE", displayName = "") {
+  if (!userId) return;
+  const userRef = doc(db, "users", userId);
+  try {
+    await setDoc(userRef, {
+      email,
+      displayName: displayName || email.split("@")[0],
+      department: department.toUpperCase(),
+      totalPoints: 0,
+      squatCount: 0,
+      currentStreak: 1,
+      createdAt: serverTimestamp(),
+      lastActive: serverTimestamp()
+    }, { merge: true });
+    console.log(`[Firebase] Profile created for ${email} (${department})`);
+  } catch (error) {
+    console.error("[Firebase] Error creating user profile:", error);
+  }
+}
+
+/**
+ * Task 1: AI-to-Database Points Bridge
+ * Atomically increments user points in Firestore (+10 XP per squat rep)
+ */
+export async function addSquatPoints(userId, reps = 1) {
+  if (!userId) return;
+  const userRef = doc(db, "users", userId);
+  try {
+    await updateDoc(userRef, {
+      totalPoints: increment(10 * reps),
+      squatCount: increment(reps),
+      lastActive: serverTimestamp()
+    });
+    console.log(`[Firebase] Awarded ${10 * reps} Aura Points to ${userId}`);
+  } catch (error) {
+    console.error("[Firebase] Error updating user points in Firestore:", error);
+  }
+}
+
+/**
+ * Task 2: Real-time Department Leaderboard Sync (CSE vs ECE vs EEE vs MECH)
+ * Subscribes to live user points and aggregates totals per department
+ */
+export function subscribeToDepartmentLeaderboard(onUpdate) {
+  const usersQuery = query(collection(db, "users"), orderBy("totalPoints", "desc"), limit(100));
+
+  return onSnapshot(usersQuery, (snapshot) => {
+    const departmentTotals = {
+      CSE: 0,
+      ECE: 0,
+      EEE: 0,
+      MECH: 0
+    };
+
+    const topAthletes = [];
+
+    snapshot.docs.forEach((docSnap) => {
+      const data = docSnap.data();
+      const dept = (data.department || "CSE").toUpperCase();
+      departmentTotals[dept] = (departmentTotals[dept] || 0) + (data.totalPoints || 0);
+
+      topAthletes.push({
+        id: docSnap.id,
+        name: data.displayName || data.email?.split("@")[0] || "Student",
+        department: dept,
+        points: data.totalPoints || 0,
+        squats: data.squatCount || 0
+      });
+    });
+
+    const formattedDepartments = Object.keys(departmentTotals).map((dept) => ({
+      department: dept,
+      points: departmentTotals[dept]
+    })).sort((a, b) => b.points - a.points);
+
+    onUpdate({
+      departments: formattedDepartments,
+      topAthletes: topAthletes.slice(0, 5)
+    });
+  }, (error) => {
+    console.error("[Firebase] Error in department leaderboard listener:", error);
+  });
+}
+
+/**
+ * Save manual or AI workout to Firestore
+ */
+export async function logWorkout(userId, exercise, duration, pointsEarned = 0) {
+  if (!userId) return;
+  try {
+    await addDoc(collection(db, "workouts"), {
+      userId,
+      exercise,
+      duration,
+      pointsEarned,
+      createdAt: serverTimestamp()
+    });
+  } catch (error) {
+    console.error("[Firebase] Error logging workout:", error);
+  }
+}
