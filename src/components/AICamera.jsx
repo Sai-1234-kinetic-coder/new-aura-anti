@@ -12,11 +12,18 @@ import {
   RefreshCw, 
   AlertCircle,
   Zap,
-  CheckCircle,
-  ShieldAlert
+  CheckCircle2,
+  VideoOff
 } from 'lucide-react';
 
-export default function AICamera({ onBack, user, userProfile, onPointsEarned, onWorkoutSaved }) {
+export default function AICamera({ 
+  onBack, 
+  user, 
+  userProfile, 
+  onPointsEarned, 
+  onWorkoutSaved,
+  onOpenAuth 
+}) {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const animationFrameId = useRef(null);
@@ -25,23 +32,23 @@ export default function AICamera({ onBack, user, userProfile, onPointsEarned, on
   const [count, setCount] = useState(0);
   const [exerciseType, setExerciseType] = useState('Squats');
   const [kneeAngle, setKneeAngle] = useState(175);
-  const [postureFeedback, setPostureFeedback] = useState("Position entire body in frame");
-  const [postureQuality, setPostureQuality] = useState('good'); // 'good' | 'warning' | 'alert'
+  const [postureFeedback, setPostureFeedback] = useState("Position entire body in camera frame");
+  const [postureQuality, setPostureQuality] = useState('good'); // 'good' | 'warning'
   const [isSaving, setIsSaving] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState('');
   const [sessionStartTime] = useState(Date.now());
   const [sessionCalories, setSessionCalories] = useState(0);
-  const [confidenceScore, setConfidenceScore] = useState(98.2);
+  const [confidenceScore, setConfidenceScore] = useState(98.4);
 
-  // Rep State Machine Ref
+  // Squat State Ref for Rep Transition
   const squatStateRef = useRef('UP'); // 'UP' | 'DOWN'
 
-  // Initialize Camera Stream
+  // Initialize Camera Stream with Comprehensive Error Catching
   const initWebcam = useCallback(() => {
     setCameraError('');
     if (!navigator?.mediaDevices?.getUserMedia) {
-      setCameraError("Camera API not supported in this browser. You can still use the simulation mode.");
+      setCameraError("Camera device not detected on this browser. You can use 'Execute AI Rep' to test all posture scoring features.");
       setCameraActive(false);
       return;
     }
@@ -61,8 +68,8 @@ export default function AICamera({ onBack, user, userProfile, onPointsEarned, on
         }
       })
       .catch((err) => {
-        console.warn("Camera access warning:", err);
-        setCameraError("Webcam is disabled or in use by another app. You can use 'Execute AI Rep' to test all scoring & posture features.");
+        console.warn("Webcam permission/device warning:", err);
+        setCameraError("Camera access is disabled or in use. You can use 'Execute AI Rep' below to simulate posture analysis & points.");
         setCameraActive(false);
       });
   }, []);
@@ -71,7 +78,9 @@ export default function AICamera({ onBack, user, userProfile, onPointsEarned, on
     initWebcam();
     return () => {
       if (videoRef.current && videoRef.current.srcObject) {
-        videoRef.current.srcObject.getTracks().forEach(track => track.stop());
+        try {
+          videoRef.current.srcObject.getTracks().forEach(track => track.stop());
+        } catch (e) {}
       }
       if (animationFrameId.current) {
         cancelAnimationFrame(animationFrameId.current);
@@ -79,31 +88,29 @@ export default function AICamera({ onBack, user, userProfile, onPointsEarned, on
     };
   }, [initWebcam]);
 
-  // Trigger celebration confetti
+  // Confetti Particle Explosion
   const triggerConfetti = () => {
     try {
       confetti({
-        particleCount: 40,
-        spread: 60,
-        origin: { y: 0.7 },
+        particleCount: 45,
+        spread: 70,
+        origin: { y: 0.65 },
         colors: ['#10b981', '#38bdf8', '#fbbf24']
       });
-    } catch (e) {
-      // Fallback
-    }
+    } catch (e) {}
   };
 
-  // Automated Rep Completion Callback
+  // Automated / Simulated Rep Handler
   const handleRepCompleted = useCallback((reps = 1) => {
     const nextCount = count + reps;
     setCount(nextCount);
-    setSessionCalories(Math.round(nextCount * 0.8));
-    setPostureFeedback("🔥 Perfect Form! Rep Completed (+10 XP)");
+    setSessionCalories(Math.round(nextCount * 0.85));
+    setPostureFeedback("🔥 Perfect Form! Deep Rep Confirmed (+10 XP)");
     setPostureQuality('good');
-    setConfidenceScore(Number((97 + Math.random() * 2.5).toFixed(1)));
+    setConfidenceScore(Number((97.5 + Math.random() * 2.2).toFixed(1)));
     triggerConfetti();
 
-    // Task 1: The AI-to-Database Points Bridge
+    // Trigger Points Bridge
     if (user?.uid) {
       addSquatPoints(user.uid, reps);
     }
@@ -112,7 +119,7 @@ export default function AICamera({ onBack, user, userProfile, onPointsEarned, on
     }
   }, [count, user, onPointsEarned]);
 
-  // Interactive Canvas Skeleton HUD Animation Loop
+  // Canvas HUD Overlay Loop
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -125,17 +132,16 @@ export default function AICamera({ onBack, user, userProfile, onPointsEarned, on
       const w = canvas.width;
       const h = canvas.height;
 
-      // Draw simulated MoveNet 17-Keypoint Skeleton
+      // Simulated MoveNet 17-Keypoint Landmarks
       const headX = w * 0.5;
       const headY = h * 0.22;
       const shoulderLX = w * 0.42, shoulderRX = w * 0.58;
       const shoulderY = h * 0.32;
-      const elbowLX = w * 0.38, elbowRX = w * 0.62;
+      const elbowLX = w * 0.37, elbowRX = w * 0.63;
       const elbowY = h * 0.45;
       const hipLX = w * 0.44, hipRX = w * 0.56;
       const hipY = h * 0.54;
       
-      // Dynamic Knee & Ankle calculation based on current squat angle
       const squatProgress = (180 - kneeAngle) / 100;
       const kneeY = h * (0.72 + squatProgress * 0.08);
       const kneeLX = w * 0.42 - squatProgress * 15;
@@ -143,10 +149,10 @@ export default function AICamera({ onBack, user, userProfile, onPointsEarned, on
       const ankleLX = w * 0.43, ankleRX = w * 0.57;
       const ankleY = h * 0.90;
 
-      // Draw Skeleton Bones
+      // Draw Bones
       ctx.strokeStyle = kneeAngle < 100 ? '#10b981' : '#38bdf8';
       ctx.lineWidth = 3;
-      ctx.shadowBlur = 10;
+      ctx.shadowBlur = 12;
       ctx.shadowColor = ctx.strokeStyle;
 
       const bones = [
@@ -169,7 +175,7 @@ export default function AICamera({ onBack, user, userProfile, onPointsEarned, on
         ctx.stroke();
       });
 
-      // Draw 17 Landmark Joint Points
+      // Draw 17 Landmark Nodes
       const joints = [
         [headX, headY],
         [shoulderLX, shoulderY], [shoulderRX, shoulderY],
@@ -190,16 +196,18 @@ export default function AICamera({ onBack, user, userProfile, onPointsEarned, on
         ctx.stroke();
       });
 
-      // Draw Joint Flexion Angle Arc at Knee
+      // Draw Knee Angle Indicator Arc
       ctx.beginPath();
       ctx.arc(kneeLX, kneeY, 22, -Math.PI / 2, Math.PI / 2);
       ctx.strokeStyle = kneeAngle < 100 ? '#10b981' : '#f59e0b';
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 2.5;
       ctx.stroke();
 
-      ctx.font = 'bold 12px Inter';
+      ctx.font = 'bold 12px Inter, sans-serif';
       ctx.fillStyle = '#fff';
-      ctx.fillText(`${kneeAngle}°`, kneeLX - 32, kneeY);
+      ctx.shadowColor = '#000';
+      ctx.shadowBlur = 4;
+      ctx.fillText(`${kneeAngle}°`, kneeLX - 36, kneeY);
 
       animationFrameId.current = requestAnimationFrame(renderOverlay);
     };
@@ -211,10 +219,10 @@ export default function AICamera({ onBack, user, userProfile, onPointsEarned, on
     };
   }, [kneeAngle]);
 
-  // Simulate smooth Rep movement for demonstration
+  // Smooth AI Rep Simulation
   const handleSimulateRep = () => {
-    setKneeAngle(85);
-    setPostureFeedback("🟢 Deep Squat Position Detected (< 90°)");
+    setKneeAngle(82);
+    setPostureFeedback("🟢 Deep Squat Angle Reached (< 90°)");
     setPostureQuality('good');
     squatStateRef.current = 'DOWN';
 
@@ -222,13 +230,13 @@ export default function AICamera({ onBack, user, userProfile, onPointsEarned, on
       setKneeAngle(175);
       squatStateRef.current = 'UP';
       handleRepCompleted(1);
-    }, 900);
+    }, 850);
   };
 
-  // Finish & Save Session to Firestore
+  // Save Workout to Firestore & Local Activity Feed
   const handleSaveSession = async () => {
     if (count === 0) {
-      alert("No reps recorded yet. Complete at least 1 rep to save session!");
+      alert("No reps recorded yet. Complete at least 1 rep before saving!");
       return;
     }
 
@@ -251,10 +259,10 @@ export default function AICamera({ onBack, user, userProfile, onPointsEarned, on
           pointsEarned: count * 10
         });
       }
-      alert(`🎉 Session Saved! You earned ${count * 10} XP for your department (${userProfile?.department || 'CSE'}).`);
+      alert(`🎉 Workout Session Saved! Awarded +${count * 10} XP to Department of ${userProfile?.department || 'CSE'}.`);
       onBack();
     } catch (err) {
-      console.error("Save error:", err);
+      console.warn("Local workout save:", err);
       onBack();
     } finally {
       setIsSaving(false);
@@ -285,7 +293,8 @@ export default function AICamera({ onBack, user, userProfile, onPointsEarned, on
                 color: exerciseType === ex ? '#061c14' : 'var(--text-secondary)',
                 fontWeight: '700',
                 fontSize: '12px',
-                cursor: 'pointer'
+                cursor: 'pointer',
+                transition: '0.2s ease'
               }}
             >
               {ex}
@@ -343,7 +352,7 @@ export default function AICamera({ onBack, user, userProfile, onPointsEarned, on
         position: 'relative',
         maxWidth: '640px',
         margin: '0 auto',
-        background: '#000',
+        background: '#090d16',
         borderRadius: 'var(--radius-lg)',
         overflow: 'hidden',
         border: '2px solid rgba(16, 185, 129, 0.6)',

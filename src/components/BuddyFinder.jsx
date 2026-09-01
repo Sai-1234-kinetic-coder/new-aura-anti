@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Users, 
   Search, 
@@ -9,7 +9,8 @@ import {
   UserCheck, 
   UserPlus, 
   Sparkles,
-  Heart
+  Heart,
+  Tag
 } from 'lucide-react';
 
 const MOCK_CAMPUS_PROFILES = [
@@ -32,7 +33,12 @@ export default function BuddyFinder() {
   const [selectedDept, setSelectedDept] = useState("ALL");
   const [selectedSport, setSelectedSport] = useState("ALL");
   const [selectedTime, setSelectedTime] = useState("ALL");
-  const [invitedIds, setInvitedIds] = useState([]);
+  
+  // Persisted Invited Buddies
+  const [invitedIds, setInvitedIds] = useState(() => {
+    const saved = localStorage.getItem('aurafit_buddies_invited');
+    return saved ? JSON.parse(saved) : [];
+  });
 
   // Client-Side Multi-Filter Logic
   const filteredBuddies = MOCK_CAMPUS_PROFILES.filter((buddy) => {
@@ -47,7 +53,9 @@ export default function BuddyFinder() {
   });
 
   const handleInvite = (id, name) => {
-    setInvitedIds(prev => [...prev, id]);
+    const nextInvited = [...invitedIds, id];
+    setInvitedIds(nextInvited);
+    localStorage.setItem('aurafit_buddies_invited', JSON.stringify(nextInvited));
     alert(`🤝 Workout buddy invite sent to ${name}! You will earn +20 bonus XP when you complete a joint streak.`);
   };
 
@@ -154,7 +162,7 @@ export default function BuddyFinder() {
               className="btn btn-secondary"
               style={{ marginTop: '10px' }}
             >
-              Reset Filters
+              Reset All Filters
             </button>
           </div>
         ) : (

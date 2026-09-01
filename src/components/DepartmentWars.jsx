@@ -16,9 +16,6 @@ export default function DepartmentWars({
   userProfile,
   onLaunchArena 
 }) {
-  // Compute total campus points
-  const totalCampusPoints = departments.reduce((acc, curr) => acc + curr.points, 0) || 1;
-
   const defaultDepts = [
     { department: 'CSE', points: 1420 },
     { department: 'ECE', points: 1180 },
@@ -27,6 +24,7 @@ export default function DepartmentWars({
   ];
 
   const displayDepts = departments.length > 0 ? departments : defaultDepts;
+  const totalCampusPoints = displayDepts.reduce((acc, curr) => acc + (curr.points || 0), 0) || 1;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -78,7 +76,8 @@ export default function DepartmentWars({
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {displayDepts.map((item, index) => {
-              const sharePercent = Math.round((item.points / totalCampusPoints) * 100) || 0;
+              const rawShare = Math.round(((item.points || 0) / totalCampusPoints) * 100);
+              const sharePercent = isNaN(rawShare) ? 0 : rawShare;
               const isUserDept = userProfile?.department === item.department;
 
               return (

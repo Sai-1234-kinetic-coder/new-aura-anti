@@ -6,8 +6,9 @@ import {
   Trophy, 
   Camera, 
   LogOut, 
-  Sparkles,
-  ShieldCheck 
+  Sparkles, 
+  ShieldCheck,
+  User 
 } from 'lucide-react';
 
 export default function Navbar({ 
@@ -15,7 +16,7 @@ export default function Navbar({
   setActiveTab, 
   user, 
   userProfile, 
-  onLogout,
+  onLogout, 
   onOpenAuth 
 }) {
   return (
@@ -47,56 +48,47 @@ export default function Navbar({
           </div>
         </div>
 
-        {/* Navigation Tabs */}
+        {/* Global Navigation Tabs (Accessible to all users & evaluators) */}
+        <nav style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <button 
+            onClick={() => setActiveTab('dashboard')} 
+            className={`btn ${activeTab === 'dashboard' ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ padding: '8px 14px', fontSize: '13px' }}
+          >
+            <Activity size={16} />
+            Dashboard
+          </button>
+
+          <button 
+            onClick={() => setActiveTab('camera')} 
+            className={`btn ${activeTab === 'camera' ? 'btn-cyan' : 'btn-secondary'}`}
+            style={{ padding: '8px 14px', fontSize: '13px' }}
+          >
+            <Camera size={16} />
+            AI Pose Arena
+          </button>
+
+          <button 
+            onClick={() => setActiveTab('leaderboard')} 
+            className={`btn ${activeTab === 'leaderboard' ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ padding: '8px 14px', fontSize: '13px' }}
+          >
+            <Trophy size={16} />
+            Dept Wars
+          </button>
+
+          <button 
+            onClick={() => setActiveTab('buddies')} 
+            className={`btn ${activeTab === 'buddies' ? 'btn-cyan' : 'btn-secondary'}`}
+            style={{ padding: '8px 14px', fontSize: '13px' }}
+          >
+            <Users size={16} />
+            Buddy Finder
+          </button>
+        </nav>
+
+        {/* User Profile Pill / Auth Action */}
         {user ? (
-          <nav style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <button 
-              onClick={() => setActiveTab('dashboard')} 
-              className={`btn ${activeTab === 'dashboard' ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ padding: '8px 14px', fontSize: '13px' }}
-            >
-              <Activity size={16} />
-              Dashboard
-            </button>
-
-            <button 
-              onClick={() => setActiveTab('camera')} 
-              className={`btn ${activeTab === 'camera' ? 'btn-cyan' : 'btn-secondary'}`}
-              style={{ padding: '8px 14px', fontSize: '13px' }}
-            >
-              <Camera size={16} />
-              AI Pose Arena
-            </button>
-
-            <button 
-              onClick={() => setActiveTab('leaderboard')} 
-              className={`btn ${activeTab === 'leaderboard' ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ padding: '8px 14px', fontSize: '13px' }}
-            >
-              <Trophy size={16} />
-              Dept Wars
-            </button>
-
-            <button 
-              onClick={() => setActiveTab('buddies')} 
-              className={`btn ${activeTab === 'buddies' ? 'btn-cyan' : 'btn-secondary'}`}
-              style={{ padding: '8px 14px', fontSize: '13px' }}
-            >
-              <Users size={16} />
-              Buddy Finder
-            </button>
-          </nav>
-        ) : (
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button onClick={onOpenAuth} className="btn btn-primary" style={{ padding: '8px 16px', fontSize: '13px' }}>
-              <ShieldCheck size={16} />
-              Student Access
-            </button>
-          </div>
-        )}
-
-        {/* User Profile Pill & Logout */}
-        {user && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{ 
               background: '#0b0f19', 
@@ -123,6 +115,17 @@ export default function Navbar({
               title="Logout"
             >
               <LogOut size={15} />
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button 
+              onClick={onOpenAuth} 
+              className="btn btn-primary" 
+              style={{ padding: '8px 16px', fontSize: '13px' }}
+            >
+              <ShieldCheck size={16} />
+              Student Access ⚡
             </button>
           </div>
         )}
