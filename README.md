@@ -21,16 +21,16 @@ Commercial fitness platforms require expensive wearable devices (smartwatches, c
 ## 🛠️ System Architecture & Workflow
 
 ```mermaid
-graph TD
-    A[Student Webcam Feed] --> B[WASM / WebGL Engine]
-    B --> C[17 Joint Skeletal Landmarks]
-    C --> D[Joint Flexion Angle Computation θ]
-    D -->|θ < 90° & Returns to 160°| E[Valid Rep Confirmed]
-    E --> F[AI-to-Database Points Bridge]
-    F --> G[(Firebase Firestore)]
-    G --> H[Live Department Wars Leaderboard]
-    G --> I[Student Profile & Streaks]
-    G --> J[Campus Buddy Matcher]
+flowchart TD
+    A["Student Webcam Feed"] --> B["WASM / WebGL Engine"]
+    B --> C["17 Joint Skeletal Landmarks"]
+    C --> D["Joint Flexion Angle Computation"]
+    D --> E["Rep Detected and Confirmed"]
+    E --> F["AI-to-Database Points Bridge"]
+    F --> G["Firebase Firestore"]
+    G --> H["Live Department Wars Leaderboard"]
+    G --> I["Student Profile & Streaks"]
+    G --> J["Campus Buddy Matcher"]
 ```
 
 ---
@@ -40,7 +40,7 @@ graph TD
 ### 1. Real-Time AI Posture Arena
 - **Zero Latency, 100% Privacy:** Runs entirely in the client browser with zero cloud frame streaming costs.
 - **17-Point Joint Tracking:** Visual HUD overlay rendering head, shoulders, elbows, hips, knees, and ankles.
-- **Dynamic Knee Flexion Gauge:** Real-time angle calculation ($\theta$) ensuring deep squat compliance ($< 90^\circ$).
+- **Dynamic Knee Flexion Gauge:** Real-time angle calculation ensuring deep squat compliance (< 90 degrees).
 - **Instant Points Bridge:** Every completed rep automatically triggers atomic Firestore updates (`+10 XP`).
 
 ### 2. Live Campus Department Wars (CSE vs ECE)
@@ -75,8 +75,8 @@ graph TD
 
 ### 1. Clone & Install Dependencies
 ```bash
-git clone https://github.com/chandra-mouli-07/Aurafit-SIH2026.git
-cd Aurafit-SIH2026
+git clone https://github.com/Sai-1234-kinetic-coder/aurafit-2026.git
+cd aurafit-2026
 npm install
 ```
 
