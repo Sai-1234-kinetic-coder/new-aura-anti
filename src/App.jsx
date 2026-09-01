@@ -21,10 +21,18 @@ export default function App() {
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   // Realtime Data State
-  const [deptLeaderboard, setDeptLeaderboard] = useState([]);
+  const [deptLeaderboard, setDeptLeaderboard] = useState([
+    { department: 'CSE', points: 1420 },
+    { department: 'ECE', points: 1180 },
+    { department: 'EEE', points: 840 },
+    { department: 'MECH', points: 650 }
+  ]);
   const [topAthletes, setTopAthletes] = useState([]);
-  const [workouts, setWorkouts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [workouts, setWorkouts] = useState([
+    { id: 'w1', exercise: 'AI Squats (20 reps)', duration: '3m 20s', pointsEarned: 200 },
+    { id: 'w2', exercise: '5km Campus Track Run', duration: '24 mins', pointsEarned: 50 },
+    { id: 'w3', exercise: 'Morning Core Yoga', duration: '15 mins', pointsEarned: 30 }
+  ]);
 
   // Fetch Workouts for active user
   const fetchUserWorkouts = useCallback(async (uid) => {
@@ -32,10 +40,12 @@ export default function App() {
     try {
       const q = query(collection(db, "workouts"), where("userId", "==", uid));
       const snapshot = await getDocs(q);
-      const list = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      setWorkouts(list.reverse());
+      if (!snapshot.empty) {
+        const list = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        setWorkouts(list.reverse());
+      }
     } catch (err) {
-      console.error("Error fetching workouts:", err);
+      console.warn("Using local workout stream:", err);
     }
   }, []);
 
@@ -45,7 +55,6 @@ export default function App() {
 
     const unsubAuth = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
-      setLoading(false);
 
       if (currentUser) {
         fetchUserWorkouts(currentUser.uid);
@@ -54,10 +63,10 @@ export default function App() {
           if (docSnap.exists()) {
             setUserProfile(docSnap.data());
           } else {
-            setUserProfile({
+            setUserProfile(prev => prev || {
               email: currentUser.email || "guest@campus.edu",
               department: "CSE",
-              totalPoints: 0,
+              totalPoints: 140,
               displayName: currentUser.displayName || currentUser.email?.split('@')[0] || "Athlete"
             });
           }
@@ -66,7 +75,6 @@ export default function App() {
         });
       } else if (!userProfile) {
         setUserProfile(null);
-        setWorkouts([]);
       }
     });
 
@@ -89,7 +97,7 @@ export default function App() {
     try {
       await signOut(auth);
     } catch (e) {
-      // Ignored for local demo sessions
+      // Ignored
     }
     setUser(null);
     setUserProfile(null);
@@ -101,6 +109,32 @@ export default function App() {
     setUser({ uid: demoData.uid, email: demoData.email });
     setUserProfile(demoData);
     setShowAuthModal(false);
+  };
+
+  // Realtime Local State Boost (when reps are completed in AI Arena)
+  const handlePointsEarned = (pointsGained, repsGained) => {
+    setUserProfile(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        totalPoints: (prev.totalPoints || 0) + pointsGained,
+        squatCount: (prev.squatCount || 0) + repsGained
+      };
+    });
+
+    setDeptLeaderboard(prev => {
+      const userDept = userProfile?.department || 'CSE';
+      return prev.map(d => {
+        if (d.department === userDept) {
+          return { ...d, points: d.points + pointsGained };
+        }
+        return d;
+      }).sort((a, b) => b.points - a.points);
+    });
+  };
+
+  const handleWorkoutSaved = (newWorkout) => {
+    setWorkouts(prev => [newWorkout, ...prev]);
   };
 
   return (
@@ -122,6 +156,8 @@ export default function App() {
             onBack={() => setActiveTab('dashboard')} 
             user={user}
             userProfile={userProfile}
+            onPointsEarned={handlePointsEarned}
+            onWorkoutSaved={handleWorkoutSaved}
           />
         ) : activeTab === 'leaderboard' ? (
           <DepartmentWars 
@@ -141,6 +177,7 @@ export default function App() {
             onLaunchArena={() => setActiveTab('camera')}
             onOpenLeaderboard={() => setActiveTab('leaderboard')}
             onOpenBuddies={() => setActiveTab('buddies')}
+            onLocalWorkoutLogged={handleWorkoutSaved}
           />
         )}
       </main>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Flame, 
   Droplet, 
@@ -12,7 +12,8 @@ import {
   Calendar,
   Sparkles,
   Zap,
-  TrendingUp
+  TrendingUp,
+  RefreshCw
 } from 'lucide-react';
 import { logWorkout } from '../lib/firebase';
 
@@ -23,11 +24,22 @@ export default function Dashboard({
   onRefreshWorkouts, 
   onLaunchArena, 
   onOpenLeaderboard, 
-  onOpenBuddies 
+  onOpenBuddies,
+  onLocalWorkoutLogged 
 }) {
-  // Interactive Water Logger (+250ml on click)
-  const [waterAmount, setWaterAmount] = useState(2.2);
+  // Interactive Water Logger (Persisted in localStorage)
+  const [waterAmount, setWaterAmount] = useState(() => {
+    const saved = localStorage.getItem('aurafit_water');
+    return saved ? Number(saved) : 2.2;
+  });
   const waterTarget = 3.5;
+
+  // Interactive Daily Steps Simulator
+  const [steps, setSteps] = useState(() => {
+    const saved = localStorage.getItem('aurafit_steps');
+    return saved ? Number(saved) : 8420;
+  });
+  const stepTarget = 10000;
 
   // Manual Activity Logger State
   const [exerciseName, setExerciseName] = useState('');
@@ -37,25 +49,46 @@ export default function Dashboard({
   const handleAddWater = () => {
     const nextAmount = Math.min(Number((waterAmount + 0.25).toFixed(2)), waterTarget);
     setWaterAmount(nextAmount);
+    localStorage.setItem('aurafit_water', nextAmount.toString());
+  };
+
+  const handleAddSteps = () => {
+    const nextSteps = Math.min(steps + 500, 15000);
+    setSteps(nextSteps);
+    localStorage.setItem('aurafit_steps', nextSteps.toString());
   };
 
   const handleLogManualActivity = async (e) => {
     e.preventDefault();
     if (!exerciseName || !durationStr) return;
     setIsLogging(true);
+    const newWorkoutObj = {
+      id: `w_${Date.now()}`,
+      exercise: exerciseName,
+      duration: durationStr,
+      pointsEarned: 25,
+      createdAt: new Date()
+    };
+
     try {
       await logWorkout(user?.uid || "demo_user", exerciseName, durationStr, 25);
       setExerciseName('');
       setDurationStr('');
+      if (onLocalWorkoutLogged) onLocalWorkoutLogged(newWorkoutObj);
       if (onRefreshWorkouts) onRefreshWorkouts();
       alert("✅ Activity successfully logged! +25 XP awarded.");
     } catch (err) {
-      console.error(err);
-      alert("Failed to log activity.");
+      console.warn("Local workout log fallback:", err);
+      if (onLocalWorkoutLogged) onLocalWorkoutLogged(newWorkoutObj);
+      setExerciseName('');
+      setDurationStr('');
+      alert("✅ Activity logged locally! +25 XP awarded.");
     } finally {
       setIsLogging(false);
     }
   };
+
+  const stepPercent = Math.min(Math.round((steps / stepTarget) * 100), 100);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -103,11 +136,23 @@ export default function Dashboard({
               <Footprints size={18} color="#38bdf8" />
             </div>
           </div>
-          <h3 style={{ fontSize: '26px', fontWeight: '900', color: '#fff', margin: '0 0 4px 0' }}>8,420 <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>/ 10,000</span></h3>
-          <div style={{ width: '100%', height: '6px', background: '#1e293b', borderRadius: 'var(--radius-full)', overflow: 'hidden', margin: '10px 0 6px 0' }}>
-            <div style={{ width: '84%', height: '100%', background: '#38bdf8', borderRadius: 'var(--radius-full)' }} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ fontSize: '26px', fontWeight: '900', color: '#fff', margin: 0 }}>
+              {steps.toLocaleString()} <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>/ {stepTarget.toLocaleString()}</span>
+            </h3>
+            <button 
+              onClick={handleAddSteps}
+              className="btn btn-secondary"
+              style={{ padding: '4px 10px', fontSize: '11px' }}
+              title="Add 500 Steps"
+            >
+              +500 🚶
+            </button>
           </div>
-          <span style={{ fontSize: '12px', color: '#34d399', fontWeight: '600' }}>84% of daily goal completed</span>
+          <div style={{ width: '100%', height: '6px', background: '#1e293b', borderRadius: 'var(--radius-full)', overflow: 'hidden', margin: '12px 0 6px 0' }}>
+            <div style={{ width: `${stepPercent}%`, height: '100%', background: '#38bdf8', borderRadius: 'var(--radius-full)', transition: 'width 0.4s ease' }} />
+          </div>
+          <span style={{ fontSize: '12px', color: '#34d399', fontWeight: '600' }}>{stepPercent}% of daily campus goal</span>
         </div>
 
         {/* Interactive Water Logger Card */}
@@ -129,7 +174,7 @@ export default function Dashboard({
               style={{ padding: '6px 12px', fontSize: '12px' }}
               title="Add 250ml"
             >
-              <Plus size={14} /> +250ml
+              <Plus size={14} /> +250ml 💧
             </button>
           </div>
         </div>
