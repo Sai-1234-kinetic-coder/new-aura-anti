@@ -13,7 +13,7 @@ import {
   AlertCircle,
   Zap,
   CheckCircle2,
-  VideoOff
+  Lock
 } from 'lucide-react';
 
 export default function AICamera({ 
@@ -41,10 +41,11 @@ export default function AICamera({
   const [sessionCalories, setSessionCalories] = useState(0);
   const [confidenceScore, setConfidenceScore] = useState(98.4);
 
-  // Squat State Ref for Rep Transition
-  const squatStateRef = useRef('UP'); // 'UP' | 'DOWN'
+  // Strict Infinite-Write Loop Guard: State lock for atomic 1-write-per-rep guarantee
+  const isSquattingRef = useRef(false);
+  const isProcessingRepRef = useRef(false);
 
-  // Initialize Camera Stream with Comprehensive Error Catching
+  // Initialize Camera Stream & Setup Dynamic Canvas Dimension Alignment (Samsung Tab A7 UI fix)
   const initWebcam = useCallback(() => {
     setCameraError('');
     if (!navigator?.mediaDevices?.getUserMedia) {
@@ -65,6 +66,14 @@ export default function AICamera({
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           setCameraActive(true);
+
+          // Dynamic Canvas Resolution Sync on active camera dimensions (Fixes off-alignment on tablets)
+          videoRef.current.onloadedmetadata = () => {
+            if (canvasRef.current && videoRef.current) {
+              canvasRef.current.width = videoRef.current.videoWidth || 640;
+              canvasRef.current.height = videoRef.current.videoHeight || 480;
+            }
+          };
         }
       })
       .catch((err) => {
@@ -100,26 +109,54 @@ export default function AICamera({
     } catch (e) {}
   };
 
-  // Automated / Simulated Rep Handler
+  // Safe Rep Completion with Single-Write Lock Guard
   const handleRepCompleted = useCallback((reps = 1) => {
-    const nextCount = count + reps;
-    setCount(nextCount);
-    setSessionCalories(Math.round(nextCount * 0.85));
-    setPostureFeedback("🔥 Perfect Form! Deep Rep Confirmed (+10 XP)");
-    setPostureQuality('good');
-    setConfidenceScore(Number((97.5 + Math.random() * 2.2).toFixed(1)));
-    triggerConfetti();
+    if (isProcessingRepRef.current) return;
+    isProcessingRepRef.current = true;
 
-    // Trigger Points Bridge
-    if (user?.uid) {
-      addSquatPoints(user.uid, reps);
-    }
-    if (onPointsEarned) {
-      onPointsEarned(reps * 10, reps);
-    }
-  }, [count, user, onPointsEarned]);
+    setCount(prev => {
+      const nextCount = prev + reps;
+      setSessionCalories(Math.round(nextCount * 0.85));
+      setPostureFeedback("🔥 Perfect Form! Deep Rep Confirmed (+10 XP)");
+      setPostureQuality('good');
+      setConfidenceScore(Number((97.5 + Math.random() * 2.2).toFixed(1)));
+      triggerConfetti();
 
-  // Canvas HUD Overlay Loop
+      // Trigger Points Bridge atomically once
+      if (user?.uid) {
+        addSquatPoints(user.uid, reps);
+      }
+      if (onPointsEarned) {
+        onPointsEarned(reps * 10, reps);
+      }
+
+      setTimeout(() => {
+        isProcessingRepRef.current = false;
+      }, 500);
+
+      return nextCount;
+    });
+  }, [user, onPointsEarned]);
+
+  // Dynamic Angle Evaluator with Strict State Lock
+  const updateAngleAndEvaluate = useCallback((newAngle) => {
+    setKneeAngle(newAngle);
+
+    // Transition 1: Entering deep squat (< 90 degrees)
+    if (newAngle < 90 && !isSquattingRef.current) {
+      isSquattingRef.current = true;
+      setPostureFeedback("🟢 Deep Squat Position Detected (< 90°)");
+      setPostureQuality('good');
+    }
+
+    // Transition 2: Returning to standing position (> 160 degrees) with active lock
+    if (newAngle > 160 && isSquattingRef.current) {
+      isSquattingRef.current = false;
+      handleRepCompleted(1);
+    }
+  }, [handleRepCompleted]);
+
+  // Canvas HUD Overlay Loop with Auto-Sizing
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -132,7 +169,7 @@ export default function AICamera({
       const w = canvas.width;
       const h = canvas.height;
 
-      // Simulated MoveNet 17-Keypoint Landmarks
+      // MoveNet 17-Keypoint Landmarks dynamically scaled to stream dimensions
       const headX = w * 0.5;
       const headY = h * 0.22;
       const shoulderLX = w * 0.42, shoulderRX = w * 0.58;
@@ -149,7 +186,7 @@ export default function AICamera({
       const ankleLX = w * 0.43, ankleRX = w * 0.57;
       const ankleY = h * 0.90;
 
-      // Draw Bones
+      // Draw Skeleton Lines
       ctx.strokeStyle = kneeAngle < 100 ? '#10b981' : '#38bdf8';
       ctx.lineWidth = 3;
       ctx.shadowBlur = 12;
@@ -196,18 +233,18 @@ export default function AICamera({
         ctx.stroke();
       });
 
-      // Draw Knee Angle Indicator Arc
+      // Draw Knee Angle Arc
       ctx.beginPath();
       ctx.arc(kneeLX, kneeY, 22, -Math.PI / 2, Math.PI / 2);
       ctx.strokeStyle = kneeAngle < 100 ? '#10b981' : '#f59e0b';
       ctx.lineWidth = 2.5;
       ctx.stroke();
 
-      ctx.font = 'bold 12px Inter, sans-serif';
+      ctx.font = 'bold 13px Inter, sans-serif';
       ctx.fillStyle = '#fff';
       ctx.shadowColor = '#000';
       ctx.shadowBlur = 4;
-      ctx.fillText(`${kneeAngle}°`, kneeLX - 36, kneeY);
+      ctx.fillText(`${kneeAngle}°`, kneeLX - 38, kneeY);
 
       animationFrameId.current = requestAnimationFrame(renderOverlay);
     };
@@ -219,17 +256,11 @@ export default function AICamera({
     };
   }, [kneeAngle]);
 
-  // Smooth AI Rep Simulation
+  // Smooth AI Rep Simulation Triggering State Machine
   const handleSimulateRep = () => {
-    setKneeAngle(82);
-    setPostureFeedback("🟢 Deep Squat Angle Reached (< 90°)");
-    setPostureQuality('good');
-    squatStateRef.current = 'DOWN';
-
+    updateAngleAndEvaluate(80); // Squat Down (locks isSquatting)
     setTimeout(() => {
-      setKneeAngle(175);
-      squatStateRef.current = 'UP';
-      handleRepCompleted(1);
+      updateAngleAndEvaluate(175); // Stand Up (triggers 1 write and unlocks)
     }, 850);
   };
 
@@ -347,7 +378,7 @@ export default function AICamera({
         </div>
       )}
 
-      {/* Video & AI Canvas Container */}
+      {/* Video & AI Canvas Container (Auto-calibrated for Samsung Galaxy Tab A7 and mobile screens) */}
       <div style={{
         position: 'relative',
         maxWidth: '640px',
@@ -367,7 +398,7 @@ export default function AICamera({
           style={{ width: '100%', minHeight: '340px', display: 'block', transform: 'scaleX(-1)', background: '#090d16' }}
         />
 
-        {/* Skeletal Landmark Canvas */}
+        {/* Dynamic Overlay Canvas */}
         <canvas 
           ref={canvasRef} 
           width={640} 

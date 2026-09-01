@@ -15,14 +15,14 @@ import {
   serverTimestamp 
 } from "firebase/firestore";
 
-// Official SIH26196 Firebase Configuration
+// Official SIH26196 Firebase Configuration with Vite environment variable support
 const firebaseConfig = {
-  apiKey: "AIzaSyADeStIGn92CD11zHwoDKaS_gUWAuAj6bo",
-  authDomain: "aurafit-7a15f.firebaseapp.com",
-  projectId: "aurafit-7a15f",
-  storageBucket: "aurafit-7a15f.firebasestorage.app",
-  messagingSenderId: "234846462868",
-  appId: "1:234846462868:web:b8837f9b104dcf8c6a2581"
+  apiKey: import.meta.env?.VITE_FIREBASE_API_KEY || "AIzaSyADeStIGn92CD11zHwoDKaS_gUWAuAj6bo",
+  authDomain: import.meta.env?.VITE_FIREBASE_AUTH_DOMAIN || "aurafit-7a15f.firebaseapp.com",
+  projectId: import.meta.env?.VITE_FIREBASE_PROJECT_ID || "aurafit-7a15f",
+  storageBucket: import.meta.env?.VITE_FIREBASE_STORAGE_BUCKET || "aurafit-7a15f.firebasestorage.app",
+  messagingSenderId: import.meta.env?.VITE_FIREBASE_MESSAGING_SENDER_ID || "234846462868",
+  appId: import.meta.env?.VITE_FIREBASE_APP_ID || "1:234846462868:web:b8837f9b104dcf8c6a2581"
 };
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
