@@ -42,6 +42,7 @@ export default function AICamera({
   const canvasRef = useRef(null);
   const animationFrameId = useRef(null);
   const plankTimerRef = useRef(null);
+  const plankHoldSecondsRef = useRef(0);
 
   // Exercise and Tracking State
   const [count, setCount] = useState(0);
@@ -107,6 +108,7 @@ export default function AICamera({
     const config = EXERCISE_CONFIG[newType] || EXERCISE_CONFIG['Squats'];
     setJointAngle(config.defaultAngle);
     setPlankHoldSeconds(0);
+    plankHoldSecondsRef.current = 0;
     isInRepRef.current = false;
     setPostureFeedback(`Ready for ${newType}. Position body in frame.`);
     setPostureQuality('good');
@@ -225,6 +227,7 @@ export default function AICamera({
       } else {
         setPostureFeedback(config.feedbackDown);
         setPostureQuality('warning');
+        plankHoldSecondsRef.current = 0;
         setPlankHoldSeconds(0);
       }
     } else {
@@ -252,21 +255,27 @@ export default function AICamera({
   useEffect(() => {
     if (exerciseType !== 'Plank') {
       if (plankTimerRef.current) clearInterval(plankTimerRef.current);
+      plankHoldSecondsRef.current = 0;
       return;
     }
 
     if (isGoodForm) {
       plankTimerRef.current = setInterval(() => {
-        setPlankHoldSeconds((prev) => {
-          if (prev + 1 >= 5) {
-            handleRepCompleted(1);
-            return 0; // Reset for next 5-second hold round
-          }
-          return prev + 1;
-        });
+        plankHoldSecondsRef.current += 1;
+        const currentSeconds = plankHoldSecondsRef.current;
+
+        if (currentSeconds >= 5) {
+          plankHoldSecondsRef.current = 0;
+          setPlankHoldSeconds(0);
+          handleRepCompleted(1);
+        } else {
+          setPlankHoldSeconds(currentSeconds);
+        }
       }, 1000);
     } else {
       if (plankTimerRef.current) clearInterval(plankTimerRef.current);
+      plankHoldSecondsRef.current = 0;
+      setPlankHoldSeconds(0);
     }
 
     return () => {
@@ -405,18 +414,19 @@ export default function AICamera({
     } else {
       // Plank Isometric Hold Simulation (Simulates 1s -> 2s -> 3s -> 4s -> 5s Hold)
       updateAngleAndEvaluateRef.current(178); // Perfect neutral spine
+      let simHold = 1;
       setPlankHoldSeconds(1);
-      
+
       const interval = setInterval(() => {
-        setPlankHoldSeconds((prev) => {
-          if (prev >= 4) {
-            clearInterval(interval);
-            handleRepCompleted(1);
-            setIsSimulating(false);
-            return 0;
-          }
-          return prev + 1;
-        });
+        simHold += 1;
+        if (simHold >= 5) {
+          clearInterval(interval);
+          setPlankHoldSeconds(0);
+          setIsSimulating(false);
+          handleRepCompleted(1);
+        } else {
+          setPlankHoldSeconds(simHold);
+        }
       }, 700);
     }
   };
