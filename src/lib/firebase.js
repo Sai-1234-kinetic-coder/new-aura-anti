@@ -17,12 +17,12 @@ import {
 
 // Official SIH26196 Firebase Configuration with Vite environment variable support
 const firebaseConfig = {
-  apiKey: import.meta.env?.VITE_FIREBASE_API_KEY || "AIzaSyADeStIGn92CD11zHwoDKaS_gUWAuAj6bo",
-  authDomain: import.meta.env?.VITE_FIREBASE_AUTH_DOMAIN || "aurafit-7a15f.firebaseapp.com",
-  projectId: import.meta.env?.VITE_FIREBASE_PROJECT_ID || "aurafit-7a15f",
-  storageBucket: import.meta.env?.VITE_FIREBASE_STORAGE_BUCKET || "aurafit-7a15f.firebasestorage.app",
-  messagingSenderId: import.meta.env?.VITE_FIREBASE_MESSAGING_SENDER_ID || "234846462868",
-  appId: import.meta.env?.VITE_FIREBASE_APP_ID || "1:234846462868:web:b8837f9b104dcf8c6a2581"
+  apiKey: import.meta.env?.VITE_FIREBASE_API_KEY || "",
+  authDomain: import.meta.env?.VITE_FIREBASE_AUTH_DOMAIN || "",
+  projectId: import.meta.env?.VITE_FIREBASE_PROJECT_ID || "",
+  storageBucket: import.meta.env?.VITE_FIREBASE_STORAGE_BUCKET || "",
+  messagingSenderId: import.meta.env?.VITE_FIREBASE_MESSAGING_SENDER_ID || "",
+  appId: import.meta.env?.VITE_FIREBASE_APP_ID || ""
 };
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
@@ -86,10 +86,12 @@ export function subscribeToDepartmentLeaderboard(onUpdate) {
 
   return onSnapshot(usersQuery, (snapshot) => {
     const departmentTotals = {
-      CSE: 1420,
-      ECE: 1180,
-      EEE: 840,
-      MECH: 650
+      CSE: 0,
+      ECE: 0,
+      EEE: 0,
+      MECH: 0,
+      IT: 0,
+      CIVIL: 0
     };
 
     const topAthletes = [];
@@ -101,17 +103,19 @@ export function subscribeToDepartmentLeaderboard(onUpdate) {
 
       topAthletes.push({
         id: docSnap.id,
-        name: data.displayName || data.email?.split("@")[0] || "Student",
+        name: data.displayName || data.email?.split("@")[0] || "Student Athlete",
         department: dept,
         points: data.totalPoints || 0,
         squats: data.squatCount || 0
       });
     });
 
-    const formattedDepartments = Object.keys(departmentTotals).map((dept) => ({
-      department: dept,
-      points: departmentTotals[dept]
-    })).sort((a, b) => b.points - a.points);
+    const formattedDepartments = Object.keys(departmentTotals)
+      .filter((dept) => departmentTotals[dept] > 0 || ['CSE', 'ECE', 'EEE', 'MECH'].includes(dept))
+      .map((dept) => ({
+        department: dept,
+        points: departmentTotals[dept]
+      })).sort((a, b) => b.points - a.points);
 
     onUpdate({
       departments: formattedDepartments,
@@ -121,17 +125,17 @@ export function subscribeToDepartmentLeaderboard(onUpdate) {
     console.warn("[Firebase] Using baseline leaderboard data:", error.message);
     onUpdate({
       departments: [
-        { department: 'CSE', points: 1420 },
-        { department: 'ECE', points: 1180 },
-        { department: 'EEE', points: 840 },
-        { department: 'MECH', points: 650 }
+        { department: 'CSE', points: 340 },
+        { department: 'ECE', points: 290 },
+        { department: 'EEE', points: 190 },
+        { department: 'MECH', points: 120 }
       ],
       topAthletes: [
-        { id: '1', name: 'Lalam Sai Bharadwaj', department: 'CSE', points: 340, squats: 34 },
-        { id: '2', name: 'Kandregula Veda Laxmi', department: 'ECE', points: 290, squats: 29 },
-        { id: '3', name: 'Lalam Kalpana', department: 'CSE', points: 260, squats: 26 },
-        { id: '4', name: 'Kasireddi Spandana', department: 'ECE', points: 210, squats: 21 },
-        { id: '5', name: 'Kovvuri Naveena', department: 'EEE', points: 190, squats: 19 }
+        { id: '1', name: 'Aarav Sharma', department: 'CSE', points: 340, squats: 34 },
+        { id: '2', name: 'Priya Mukherjee', department: 'ECE', points: 290, squats: 29 },
+        { id: '3', name: 'Rohan Kulkarni', department: 'CSE', points: 260, squats: 26 },
+        { id: '4', name: 'Ananya Verma', department: 'ECE', points: 210, squats: 21 },
+        { id: '5', name: 'Neha Patel', department: 'EEE', points: 190, squats: 19 }
       ]
     });
   });

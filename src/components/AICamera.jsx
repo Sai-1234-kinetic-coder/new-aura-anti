@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import confetti from 'canvas-confetti';
 import { addSquatPoints, logWorkout } from '../lib/firebase';
+import { useToast } from './ToastContext';
 import { 
   Camera, 
   ArrowLeft, 
@@ -13,7 +14,8 @@ import {
   AlertCircle,
   Zap,
   CheckCircle2,
-  Lock
+  Lock,
+  ShieldCheck
 } from 'lucide-react';
 
 export default function AICamera({ 
@@ -24,14 +26,15 @@ export default function AICamera({
   onWorkoutSaved,
   onOpenAuth 
 }) {
+  const toast = useToast();
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const animationFrameId = useRef(null);
 
   // Exercise and Tracking State
   const [count, setCount] = useState(0);
-  const [exerciseType, setExerciseType] = useState('Squats');
-  const [kneeAngle, setKneeAngle] = useState(175);
+  const [exerciseType, setExerciseType] = useState('Squats'); // 'Squats' | 'Push-ups' | 'Plank'
+  const [jointAngle, setJointAngle] = useState(175);
   const [postureFeedback, setPostureFeedback] = useState("Position entire body in camera frame");
   const [postureQuality, setPostureQuality] = useState('good'); // 'good' | 'warning'
   const [isSaving, setIsSaving] = useState(false);
@@ -40,12 +43,59 @@ export default function AICamera({
   const [sessionStartTime] = useState(Date.now());
   const [sessionCalories, setSessionCalories] = useState(0);
   const [confidenceScore, setConfidenceScore] = useState(98.4);
+  const [isSimulating, setIsSimulating] = useState(false);
 
-  // Strict Infinite-Write Loop Guard: State lock for atomic 1-write-per-rep guarantee
-  const isSquattingRef = useRef(false);
+  // Strict Concurrency Guards for 1-write-per-rep guarantees
+  const isInRepRef = useRef(false);
   const isProcessingRepRef = useRef(false);
 
-  // Initialize Camera Stream & Setup Dynamic Canvas Dimension Alignment (Samsung Tab A7 UI fix)
+  // Exercise Specific Metadata Definitions
+  const EXERCISE_CONFIG = {
+    'Squats': {
+      angleName: 'Knee Angle',
+      targetGoal: '< 90°',
+      activeColor: '#10b981',
+      defaultAngle: 175,
+      thresholdDown: 90,
+      thresholdUp: 160,
+      feedbackDown: '🟢 Deep Squat Position Detected (< 90°)',
+      feedbackUp: '🔥 Perfect Form! Deep Squat Confirmed (+10 XP)'
+    },
+    'Push-ups': {
+      angleName: 'Elbow Angle',
+      targetGoal: '< 90°',
+      activeColor: '#38bdf8',
+      defaultAngle: 175,
+      thresholdDown: 90,
+      thresholdUp: 160,
+      feedbackDown: '🟢 Chest Depth Reached (< 90°)',
+      feedbackUp: '⚡ Solid Push-up! Full Lockout Confirmed (+10 XP)'
+    },
+    'Plank': {
+      angleName: 'Spine Alignment',
+      targetGoal: '165° - 180°',
+      activeColor: '#a855f7',
+      defaultAngle: 178,
+      thresholdDown: 160,
+      thresholdUp: 175,
+      feedbackDown: '⚠️ Adjust Hips: Keep spine neutral & straight',
+      feedbackUp: '💎 Rock-Solid Core Alignment Maintained (+10 XP)'
+    }
+  };
+
+  const currentConfig = EXERCISE_CONFIG[exerciseType] || EXERCISE_CONFIG['Squats'];
+
+  // Handle Exercise Type Change
+  const handleExerciseChange = (newType) => {
+    setExerciseType(newType);
+    const config = EXERCISE_CONFIG[newType] || EXERCISE_CONFIG['Squats'];
+    setJointAngle(config.defaultAngle);
+    isInRepRef.current = false;
+    setPostureFeedback(`Ready for ${newType}. Position body in frame.`);
+    setPostureQuality('good');
+  };
+
+  // Initialize Camera Stream & Dynamic Canvas Alignment
   const initWebcam = useCallback(() => {
     setCameraError('');
     if (!navigator?.mediaDevices?.getUserMedia) {
@@ -67,7 +117,6 @@ export default function AICamera({
           videoRef.current.srcObject = stream;
           setCameraActive(true);
 
-          // Dynamic Canvas Resolution Sync on active camera dimensions (Fixes off-alignment on tablets)
           videoRef.current.onloadedmetadata = () => {
             if (canvasRef.current && videoRef.current) {
               canvasRef.current.width = videoRef.current.videoWidth || 640;
@@ -109,52 +158,77 @@ export default function AICamera({
     } catch (e) {}
   };
 
-  // Safe Rep Completion with Single-Write Lock Guard
+  // Safe Rep Completion: Pure state update + isolated side-effects
   const handleRepCompleted = useCallback((reps = 1) => {
     if (isProcessingRepRef.current) return;
     isProcessingRepRef.current = true;
 
-    setCount(prev => {
+    // 1. Pure State Update
+    setCount((prev) => {
       const nextCount = prev + reps;
       setSessionCalories(Math.round(nextCount * 0.85));
-      setPostureFeedback("🔥 Perfect Form! Deep Rep Confirmed (+10 XP)");
-      setPostureQuality('good');
-      setConfidenceScore(Number((97.5 + Math.random() * 2.2).toFixed(1)));
-      triggerConfetti();
-
-      // Trigger Points Bridge atomically once
-      if (user?.uid) {
-        addSquatPoints(user.uid, reps);
-      }
-      if (onPointsEarned) {
-        onPointsEarned(reps * 10, reps);
-      }
-
-      setTimeout(() => {
-        isProcessingRepRef.current = false;
-      }, 500);
-
       return nextCount;
     });
-  }, [user, onPointsEarned]);
 
-  // Dynamic Angle Evaluator with Strict State Lock
+    // 2. Pure UI & Telemetry Updates
+    const config = EXERCISE_CONFIG[exerciseType] || EXERCISE_CONFIG['Squats'];
+    setPostureFeedback(config.feedbackUp);
+    setPostureQuality('good');
+    setConfidenceScore(Number((97.5 + Math.random() * 2.2).toFixed(1)));
+    triggerConfetti();
+
+    // 3. Isolated Async Side-effects
+    if (user?.uid) {
+      addSquatPoints(user.uid, reps);
+    }
+    if (onPointsEarned) {
+      onPointsEarned(reps * 10, reps);
+    }
+
+    // 4. Concurrency lock cooldown
+    setTimeout(() => {
+      isProcessingRepRef.current = false;
+    }, 500);
+  }, [user, onPointsEarned, exerciseType]);
+
+  // Dynamic Angle Evaluator per Exercise Type
   const updateAngleAndEvaluate = useCallback((newAngle) => {
-    setKneeAngle(newAngle);
+    setJointAngle(newAngle);
+    const config = EXERCISE_CONFIG[exerciseType] || EXERCISE_CONFIG['Squats'];
 
-    // Transition 1: Entering deep squat (< 90 degrees)
-    if (newAngle < 90 && !isSquattingRef.current) {
-      isSquattingRef.current = true;
-      setPostureFeedback("🟢 Deep Squat Position Detected (< 90°)");
-      setPostureQuality('good');
-    }
+    if (exerciseType === 'Plank') {
+      if (newAngle >= 165 && newAngle <= 180) {
+        setPostureFeedback("🟢 Core Engaged — Neutral Spine Maintained");
+        setPostureQuality('good');
+        if (!isInRepRef.current) {
+          isInRepRef.current = true;
+          handleRepCompleted(1);
+        }
+      } else {
+        setPostureFeedback("⚠️ Adjust Core: Spine sagging or over-extended");
+        setPostureQuality('warning');
+        isInRepRef.current = false;
+      }
+    } else {
+      // Squats & Push-ups
+      if (newAngle <= config.thresholdDown && !isInRepRef.current) {
+        isInRepRef.current = true;
+        setPostureFeedback(config.feedbackDown);
+        setPostureQuality('good');
+      }
 
-    // Transition 2: Returning to standing position (> 160 degrees) with active lock
-    if (newAngle > 160 && isSquattingRef.current) {
-      isSquattingRef.current = false;
-      handleRepCompleted(1);
+      if (newAngle >= config.thresholdUp && isInRepRef.current) {
+        isInRepRef.current = false;
+        handleRepCompleted(1);
+      }
     }
-  }, [handleRepCompleted]);
+  }, [exerciseType, handleRepCompleted]);
+
+  // Ref storing latest evaluation function to eliminate stale closures in setTimeout
+  const updateAngleAndEvaluateRef = useRef(updateAngleAndEvaluate);
+  useEffect(() => {
+    updateAngleAndEvaluateRef.current = updateAngleAndEvaluate;
+  }, [updateAngleAndEvaluate]);
 
   // Canvas HUD Overlay Loop with Auto-Sizing
   useEffect(() => {
@@ -179,15 +253,15 @@ export default function AICamera({
       const hipLX = w * 0.44, hipRX = w * 0.56;
       const hipY = h * 0.54;
       
-      const squatProgress = (180 - kneeAngle) / 100;
-      const kneeY = h * (0.72 + squatProgress * 0.08);
-      const kneeLX = w * 0.42 - squatProgress * 15;
-      const kneeRX = w * 0.58 + squatProgress * 15;
+      const angleProgress = Math.max(0, Math.min(1, (180 - jointAngle) / 100));
+      const kneeY = h * (0.72 + angleProgress * 0.08);
+      const kneeLX = w * 0.42 - angleProgress * 15;
+      const kneeRX = w * 0.58 + angleProgress * 15;
       const ankleLX = w * 0.43, ankleRX = w * 0.57;
       const ankleY = h * 0.90;
 
       // Draw Skeleton Lines
-      ctx.strokeStyle = kneeAngle < 100 ? '#10b981' : '#38bdf8';
+      ctx.strokeStyle = jointAngle < 100 || (exerciseType === 'Plank' && jointAngle >= 165) ? '#10b981' : '#38bdf8';
       ctx.lineWidth = 3;
       ctx.shadowBlur = 12;
       ctx.shadowColor = ctx.strokeStyle;
@@ -233,10 +307,20 @@ export default function AICamera({
         ctx.stroke();
       });
 
-      // Draw Knee Angle Arc
+      // Draw Target Angle Arc depending on exercise
+      let arcX = kneeLX;
+      let arcY = kneeY;
+      if (exerciseType === 'Push-ups') {
+        arcX = elbowLX;
+        arcY = elbowY;
+      } else if (exerciseType === 'Plank') {
+        arcX = hipLX;
+        arcY = hipY;
+      }
+
       ctx.beginPath();
-      ctx.arc(kneeLX, kneeY, 22, -Math.PI / 2, Math.PI / 2);
-      ctx.strokeStyle = kneeAngle < 100 ? '#10b981' : '#f59e0b';
+      ctx.arc(arcX, arcY, 22, -Math.PI / 2, Math.PI / 2);
+      ctx.strokeStyle = jointAngle < 100 || (exerciseType === 'Plank' && jointAngle >= 165) ? '#10b981' : '#f59e0b';
       ctx.lineWidth = 2.5;
       ctx.stroke();
 
@@ -244,7 +328,7 @@ export default function AICamera({
       ctx.fillStyle = '#fff';
       ctx.shadowColor = '#000';
       ctx.shadowBlur = 4;
-      ctx.fillText(`${kneeAngle}°`, kneeLX - 38, kneeY);
+      ctx.fillText(`${jointAngle}°`, arcX - 38, arcY);
 
       animationFrameId.current = requestAnimationFrame(renderOverlay);
     };
@@ -254,20 +338,41 @@ export default function AICamera({
     return () => {
       if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
     };
-  }, [kneeAngle]);
+  }, [jointAngle, exerciseType]);
 
-  // Smooth AI Rep Simulation Triggering State Machine
+  // Smooth AI Rep Simulation with Ref-protected closure
   const handleSimulateRep = () => {
-    updateAngleAndEvaluate(80); // Squat Down (locks isSquatting)
-    setTimeout(() => {
-      updateAngleAndEvaluate(175); // Stand Up (triggers 1 write and unlocks)
-    }, 850);
+    if (isSimulating) return;
+    setIsSimulating(true);
+
+    if (exerciseType === 'Squats') {
+      updateAngleAndEvaluateRef.current(80); // Squat Down
+      setTimeout(() => {
+        updateAngleAndEvaluateRef.current(175); // Stand Up
+        setIsSimulating(false);
+      }, 850);
+    } else if (exerciseType === 'Push-ups') {
+      updateAngleAndEvaluateRef.current(75); // Chest Down
+      setTimeout(() => {
+        updateAngleAndEvaluateRef.current(170); // Press Up
+        setIsSimulating(false);
+      }, 850);
+    } else {
+      // Plank hold simulation
+      updateAngleAndEvaluateRef.current(155); // Sagging
+      setTimeout(() => {
+        updateAngleAndEvaluateRef.current(178); // Perfect neutral spine
+        setTimeout(() => {
+          setIsSimulating(false);
+        }, 850);
+      }, 500);
+    }
   };
 
   // Save Workout to Firestore & Local Activity Feed
   const handleSaveSession = async () => {
     if (count === 0) {
-      alert("No reps recorded yet. Complete at least 1 rep before saving!");
+      toast.warning("No reps recorded yet. Complete at least 1 rep before saving!");
       return;
     }
 
@@ -290,10 +395,11 @@ export default function AICamera({
           pointsEarned: count * 10
         });
       }
-      alert(`🎉 Workout Session Saved! Awarded +${count * 10} XP to Department of ${userProfile?.department || 'CSE'}.`);
+      toast.success(`🎉 Workout Session Saved! Awarded +${count * 10} XP to Department of ${userProfile?.department || 'CSE'}.`);
       onBack();
     } catch (err) {
       console.warn("Local workout save:", err);
+      toast.info(`Workout logged locally (+${count * 10} XP).`);
       onBack();
     } finally {
       setIsSaving(false);
@@ -315,7 +421,7 @@ export default function AICamera({
           {['Squats', 'Push-ups', 'Plank'].map(ex => (
             <button
               key={ex}
-              onClick={() => setExerciseType(ex)}
+              onClick={() => handleExerciseChange(ex)}
               style={{
                 padding: '6px 14px',
                 borderRadius: '6px',
@@ -343,6 +449,37 @@ export default function AICamera({
         </button>
       </div>
 
+      {/* Guest Notice Banner if unauthenticated */}
+      {!user && (
+        <div style={{
+          background: 'rgba(56, 189, 248, 0.08)',
+          border: '1px solid rgba(56, 189, 248, 0.25)',
+          borderRadius: 'var(--radius-sm)',
+          padding: '10px 16px',
+          marginBottom: '16px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '10px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#bae6fd' }}>
+            <ShieldCheck size={16} color="#38bdf8" />
+            <span>Exercising as Guest Athlete. Sign in to save permanent XP for your branch!</span>
+          </div>
+          {onOpenAuth && (
+            <button
+              type="button"
+              onClick={onOpenAuth}
+              className="btn btn-cyan"
+              style={{ padding: '4px 12px', fontSize: '11px' }}
+            >
+              Student Sign In ⚡
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Title & Live Status */}
       <div style={{ textAlign: 'center', marginBottom: '20px' }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
@@ -353,7 +490,7 @@ export default function AICamera({
           Real-Time AI Posture & Form Corrector ⚡
         </h2>
         <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>
-          17-Point Joint Coordinate Tracking with On-Device Edge Inference
+          Tracking <strong>{exerciseType}</strong> with 17-Point Joint Coordinate Edge Inference
         </p>
       </div>
 
@@ -378,7 +515,7 @@ export default function AICamera({
         </div>
       )}
 
-      {/* Video & AI Canvas Container (Auto-calibrated for Samsung Galaxy Tab A7 and mobile screens) */}
+      {/* Video & AI Canvas Container */}
       <div style={{
         position: 'relative',
         maxWidth: '640px',
@@ -428,7 +565,7 @@ export default function AICamera({
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
             <Activity size={14} color="#10b981" />
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '700' }}>Form Status</span>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '700' }}>{exerciseType} Form</span>
           </div>
           <p style={{ margin: 0, fontSize: '13px', fontWeight: '700', color: postureQuality === 'good' ? '#34d399' : '#fbbf24' }}>
             {postureFeedback}
@@ -436,15 +573,15 @@ export default function AICamera({
 
           <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '16px' }}>
             <div>
-              <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Knee Angle</span>
-              <p style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: kneeAngle < 100 ? '#10b981' : '#f59e0b' }}>
-                {kneeAngle}°
+              <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{currentConfig.angleName}</span>
+              <p style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: jointAngle < 100 || (exerciseType === 'Plank' && jointAngle >= 165) ? '#10b981' : '#f59e0b' }}>
+                {jointAngle}°
               </p>
             </div>
             <div>
-              <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Depth Goal</span>
+              <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Target Goal</span>
               <p style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: '#38bdf8' }}>
-                &lt; 90°
+                {currentConfig.targetGoal}
               </p>
             </div>
           </div>
@@ -463,7 +600,9 @@ export default function AICamera({
           textAlign: 'center',
           boxShadow: '0 4px 15px rgba(0,0,0,0.6)'
         }}>
-          <span style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '700' }}>Total Reps</span>
+          <span style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '700' }}>
+            {exerciseType === 'Plank' ? 'Rounds' : 'Total Reps'}
+          </span>
           <h3 style={{ margin: 0, fontSize: '28px', color: '#fff', fontWeight: '900' }}>
             {count}
           </h3>
@@ -478,11 +617,12 @@ export default function AICamera({
       <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
         <button 
           onClick={handleSimulateRep}
+          disabled={isSimulating}
           className="btn btn-cyan glow-cyan"
           style={{ padding: '12px 28px', fontSize: '15px' }}
         >
           <Zap size={18} />
-          Execute AI Rep (+10 XP) ⚡
+          {isSimulating ? `Evaluating ${exerciseType}...` : `Execute AI ${exerciseType} Rep (+10 XP) ⚡`}
         </button>
       </div>
 

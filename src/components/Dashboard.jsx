@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useToast } from './ToastContext';
 import { 
   Flame, 
   Droplet, 
@@ -27,6 +28,7 @@ export default function Dashboard({
   onOpenBuddies,
   onLocalWorkoutLogged 
 }) {
+  const toast = useToast();
   // Interactive Water Logger (Persisted in localStorage)
   const [waterAmount, setWaterAmount] = useState(() => {
     const saved = localStorage.getItem('aurafit_water');
@@ -76,13 +78,13 @@ export default function Dashboard({
       setDurationStr('');
       if (onLocalWorkoutLogged) onLocalWorkoutLogged(newWorkoutObj);
       if (onRefreshWorkouts) onRefreshWorkouts();
-      alert("✅ Activity successfully logged! +25 XP awarded.");
+      toast.success("✅ Activity successfully logged! +25 XP awarded.");
     } catch (err) {
       console.warn("Local workout log fallback:", err);
       if (onLocalWorkoutLogged) onLocalWorkoutLogged(newWorkoutObj);
       setExerciseName('');
       setDurationStr('');
-      alert("✅ Activity logged locally! +25 XP awarded.");
+      toast.success("✅ Activity logged locally! +25 XP awarded.");
     } finally {
       setIsLogging(false);
     }

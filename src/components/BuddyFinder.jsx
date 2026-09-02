@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useToast } from './ToastContext';
 import { 
   Users, 
   Search, 
@@ -14,21 +15,22 @@ import {
 } from 'lucide-react';
 
 const MOCK_CAMPUS_PROFILES = [
-  { id: 1, name: "Lalam Sai Bharadwaj", dept: "CSE", year: "3rd Year", sport: "Gym / Squats", time: "6:00 AM", streak: "14 Days", level: "Elite", bio: "Aiming for 100 daily squats & AI posture perfection.", hostel: "Boys Hostel 2" },
-  { id: 2, name: "Kandregula Veda Laxmi", dept: "ECE", year: "3rd Year", sport: "Running", time: "5:30 PM", streak: "19 Days", level: "Master", bio: "Campus track runner. Training for 10km marathon.", hostel: "Girls Hostel 1" },
-  { id: 3, name: "Lalam Kalpana", dept: "CSE", year: "2nd Year", sport: "Yoga", time: "7:00 AM", streak: "8 Days", level: "Pro", bio: "Morning mindfulness, core flexibility and breathwork.", hostel: "Girls Hostel 2" },
-  { id: 4, name: "Kovvuri Naveena", dept: "EEE", year: "3rd Year", sport: "Gym / Squats", time: "6:30 PM", streak: "12 Days", level: "Pro", bio: "Looking for an evening campus workout accountability buddy.", hostel: "Girls Hostel 1" },
-  { id: 5, name: "Lalam Chandramouli", dept: "CSE", year: "4th Year", sport: "Running", time: "6:00 AM", streak: "25 Days", level: "Campus Legend", bio: "Daily 5km campus sprinter and sports secretary.", hostel: "Day Scholar" },
-  { id: 6, name: "Kasireddi Spandana", dept: "ECE", year: "2nd Year", sport: "Yoga", time: "5:00 PM", streak: "15 Days", level: "Master", bio: "Evening campus lawn yoga sessions.", hostel: "Girls Hostel 3" },
-  { id: 7, name: "Aditya Verma", dept: "MECH", year: "3rd Year", sport: "Gym / Squats", time: "7:00 PM", streak: "6 Days", level: "Novice", bio: "Powerlifting and squat form improvements.", hostel: "Boys Hostel 1" },
-  { id: 8, name: "Sneha Reddy", dept: "EEE", year: "1st Year", sport: "Running", time: "6:30 AM", streak: "10 Days", level: "Pro", bio: "Beginner runner building stamina.", hostel: "Girls Hostel 2" },
-  { id: 9, name: "Rohan Kulkarni", dept: "IT", year: "3rd Year", sport: "Badminton", time: "5:30 PM", streak: "18 Days", level: "Elite", bio: "Indoor stadium daily singles & doubles partner needed.", hostel: "Day Scholar" },
+  { id: 1, name: "Aarav Sharma", dept: "CSE", year: "3rd Year", sport: "Gym / Squats", time: "6:00 AM", streak: "14 Days", level: "Elite", bio: "Aiming for 100 daily squats & AI posture perfection.", hostel: "Boys Hostel 2" },
+  { id: 2, name: "Priya Mukherjee", dept: "ECE", year: "3rd Year", sport: "Running", time: "5:30 PM", streak: "19 Days", level: "Master", bio: "Campus track runner. Training for 10km marathon.", hostel: "Girls Hostel 1" },
+  { id: 3, name: "Rohan Kulkarni", dept: "CSE", year: "2nd Year", sport: "Yoga", time: "7:00 AM", streak: "8 Days", level: "Pro", bio: "Morning mindfulness, core flexibility and breathwork.", hostel: "Girls Hostel 2" },
+  { id: 4, name: "Neha Patel", dept: "EEE", year: "3rd Year", sport: "Gym / Squats", time: "6:30 PM", streak: "12 Days", level: "Pro", bio: "Looking for an evening campus workout accountability buddy.", hostel: "Girls Hostel 1" },
+  { id: 5, name: "Kabir Das", dept: "CSE", year: "4th Year", sport: "Running", time: "6:00 AM", streak: "25 Days", level: "Campus Legend", bio: "Daily 5km campus sprinter and sports enthusiast.", hostel: "Day Scholar" },
+  { id: 6, name: "Ananya Verma", dept: "ECE", year: "2nd Year", sport: "Yoga", time: "5:00 PM", streak: "15 Days", level: "Master", bio: "Evening campus lawn yoga and posture sessions.", hostel: "Girls Hostel 3" },
+  { id: 7, name: "Aditya Verma", dept: "MECH", year: "3rd Year", sport: "Gym / Squats", time: "7:00 PM", streak: "6 Days", level: "Novice", bio: "Calisthenics and squat form improvements.", hostel: "Boys Hostel 1" },
+  { id: 8, name: "Sneha Reddy", dept: "EEE", year: "1st Year", sport: "Running", time: "6:30 AM", streak: "10 Days", level: "Pro", bio: "Beginner runner building campus track stamina.", hostel: "Girls Hostel 2" },
+  { id: 9, name: "Devansh Mehta", dept: "IT", year: "3rd Year", sport: "Badminton", time: "5:30 PM", streak: "18 Days", level: "Elite", bio: "Indoor stadium daily singles & doubles partner needed.", hostel: "Day Scholar" },
   { id: 10, name: "Meera Nair", dept: "CIVIL", year: "2nd Year", sport: "Cycling", time: "6:00 AM", streak: "11 Days", level: "Pro", bio: "Campus ring road morning cycling rides.", hostel: "Girls Hostel 1" },
-  { id: 11, name: "Pawan Kalyan S.", dept: "CSE", year: "2nd Year", sport: "Gym / Squats", time: "7:00 PM", streak: "9 Days", level: "Pro", bio: "Calisthenics and pull-ups enthusiast.", hostel: "Boys Hostel 3" },
-  { id: 12, name: "Divya Teja", dept: "ECE", year: "4th Year", sport: "Running", time: "5:00 PM", streak: "22 Days", level: "Campus Legend", bio: "Evening campus jogging with audio podcasts.", hostel: "Day Scholar" },
+  { id: 11, name: "Karan Malhotra", dept: "CSE", year: "2nd Year", sport: "Gym / Squats", time: "7:00 PM", streak: "9 Days", level: "Pro", bio: "Calisthenics and push-ups enthusiast.", hostel: "Boys Hostel 3" },
+  { id: 12, name: "Tara Sengupta", dept: "ECE", year: "4th Year", sport: "Running", time: "5:00 PM", streak: "22 Days", level: "Campus Legend", bio: "Evening campus jogging with audio podcasts.", hostel: "Day Scholar" },
 ];
 
 export default function BuddyFinder() {
+  const toast = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDept, setSelectedDept] = useState("ALL");
   const [selectedSport, setSelectedSport] = useState("ALL");
@@ -56,7 +58,7 @@ export default function BuddyFinder() {
     const nextInvited = [...invitedIds, id];
     setInvitedIds(nextInvited);
     localStorage.setItem('aurafit_buddies_invited', JSON.stringify(nextInvited));
-    alert(`🤝 Workout buddy invite sent to ${name}! You will earn +20 bonus XP when you complete a joint streak.`);
+    toast.success(`🤝 Workout buddy invite sent to ${name}! You will earn +20 bonus XP on your joint streak.`);
   };
 
   return (

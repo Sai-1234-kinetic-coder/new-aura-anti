@@ -13,6 +13,7 @@ import AICamera from './components/AICamera';
 import DepartmentWars from './components/DepartmentWars';
 import BuddyFinder from './components/BuddyFinder';
 import AuthModal from './components/AuthModal';
+import { ToastProvider } from './components/ToastContext';
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -22,10 +23,10 @@ export default function App() {
 
   // Realtime Data State
   const [deptLeaderboard, setDeptLeaderboard] = useState([
-    { department: 'CSE', points: 1420 },
-    { department: 'ECE', points: 1180 },
-    { department: 'EEE', points: 840 },
-    { department: 'MECH', points: 650 }
+    { department: 'CSE', points: 340 },
+    { department: 'ECE', points: 290 },
+    { department: 'EEE', points: 190 },
+    { department: 'MECH', points: 120 }
   ]);
   const [topAthletes, setTopAthletes] = useState([]);
   const [workouts, setWorkouts] = useState([
@@ -73,7 +74,7 @@ export default function App() {
         }, (err) => {
           console.warn("Profile listener fallback:", err);
         });
-      } else if (!userProfile) {
+      } else {
         setUserProfile(null);
       }
     });
@@ -91,7 +92,7 @@ export default function App() {
       if (unsubProfile) unsubProfile();
       unsubLeaderboard();
     };
-  }, [fetchUserWorkouts, userProfile]);
+  }, [fetchUserWorkouts]);
 
   const handleLogout = async () => {
     try {
@@ -138,57 +139,60 @@ export default function App() {
   };
 
   return (
-    <div className="app-container">
-      {/* Navbar Header */}
-      <Navbar 
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        user={user}
-        userProfile={userProfile}
-        onLogout={handleLogout}
-        onOpenAuth={() => setShowAuthModal(true)}
-      />
+    <ToastProvider>
+      <div className="app-container">
+        {/* Navbar Header */}
+        <Navbar 
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          user={user}
+          userProfile={userProfile}
+          onLogout={handleLogout}
+          onOpenAuth={() => setShowAuthModal(true)}
+        />
 
-      {/* Main Tab Views */}
-      <main>
-        {activeTab === 'camera' ? (
-          <AICamera 
-            onBack={() => setActiveTab('dashboard')} 
-            user={user}
-            userProfile={userProfile}
-            onPointsEarned={handlePointsEarned}
-            onWorkoutSaved={handleWorkoutSaved}
-          />
-        ) : activeTab === 'leaderboard' ? (
-          <DepartmentWars 
-            departments={deptLeaderboard}
-            topAthletes={topAthletes}
-            userProfile={userProfile}
-            onLaunchArena={() => setActiveTab('camera')}
-          />
-        ) : activeTab === 'buddies' ? (
-          <BuddyFinder />
-        ) : (
-          <Dashboard 
-            user={user}
-            userProfile={userProfile}
-            workouts={workouts}
-            onRefreshWorkouts={() => user && fetchUserWorkouts(user.uid)}
-            onLaunchArena={() => setActiveTab('camera')}
-            onOpenLeaderboard={() => setActiveTab('leaderboard')}
-            onOpenBuddies={() => setActiveTab('buddies')}
-            onLocalWorkoutLogged={handleWorkoutSaved}
+        {/* Main Tab Views */}
+        <main>
+          {activeTab === 'camera' ? (
+            <AICamera 
+              onBack={() => setActiveTab('dashboard')} 
+              user={user}
+              userProfile={userProfile}
+              onPointsEarned={handlePointsEarned}
+              onWorkoutSaved={handleWorkoutSaved}
+              onOpenAuth={() => setShowAuthModal(true)}
+            />
+          ) : activeTab === 'leaderboard' ? (
+            <DepartmentWars 
+              departments={deptLeaderboard}
+              topAthletes={topAthletes}
+              userProfile={userProfile}
+              onLaunchArena={() => setActiveTab('camera')}
+            />
+          ) : activeTab === 'buddies' ? (
+            <BuddyFinder />
+          ) : (
+            <Dashboard 
+              user={user}
+              userProfile={userProfile}
+              workouts={workouts}
+              onRefreshWorkouts={() => user && fetchUserWorkouts(user.uid)}
+              onLaunchArena={() => setActiveTab('camera')}
+              onOpenLeaderboard={() => setActiveTab('leaderboard')}
+              onOpenBuddies={() => setActiveTab('buddies')}
+              onLocalWorkoutLogged={handleWorkoutSaved}
+            />
+          )}
+        </main>
+
+        {/* Auth Modal */}
+        {showAuthModal && (
+          <AuthModal 
+            onClose={() => setShowAuthModal(false)} 
+            onGuestLogin={handleGuestSession}
           />
         )}
-      </main>
-
-      {/* Auth Modal */}
-      {showAuthModal && (
-        <AuthModal 
-          onClose={() => setShowAuthModal(false)} 
-          onGuestLogin={handleGuestSession}
-        />
-      )}
-    </div>
+      </div>
+    </ToastProvider>
   );
 }

@@ -17,10 +17,10 @@ export default function DepartmentWars({
   onLaunchArena 
 }) {
   const defaultDepts = [
-    { department: 'CSE', points: 1420 },
-    { department: 'ECE', points: 1180 },
-    { department: 'EEE', points: 840 },
-    { department: 'MECH', points: 650 },
+    { department: 'CSE', points: 340 },
+    { department: 'ECE', points: 290 },
+    { department: 'EEE', points: 190 },
+    { department: 'MECH', points: 120 },
   ];
 
   const displayDepts = departments.length > 0 ? departments : defaultDepts;
@@ -159,11 +159,11 @@ export default function DepartmentWars({
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {(topAthletes.length > 0 ? topAthletes : [
-              { id: '1', name: 'Lalam Sai Bharadwaj', department: 'CSE', points: 340, squats: 34 },
-              { id: '2', name: 'Kandregula Veda Laxmi', department: 'ECE', points: 290, squats: 29 },
-              { id: '3', name: 'Lalam Kalpana', department: 'CSE', points: 260, squats: 26 },
-              { id: '4', name: 'Kasireddi Spandana', department: 'ECE', points: 210, squats: 21 },
-              { id: '5', name: 'Kovvuri Naveena', department: 'EEE', points: 190, squats: 19 },
+              { id: '1', name: 'Aarav Sharma', department: 'CSE', points: 340, squats: 34 },
+              { id: '2', name: 'Priya Mukherjee', department: 'ECE', points: 290, squats: 29 },
+              { id: '3', name: 'Rohan Kulkarni', department: 'CSE', points: 260, squats: 26 },
+              { id: '4', name: 'Ananya Verma', department: 'ECE', points: 210, squats: 21 },
+              { id: '5', name: 'Neha Patel', department: 'EEE', points: 190, squats: 19 },
             ]).map((athlete, i) => (
               <div 
                 key={athlete.id || i}
