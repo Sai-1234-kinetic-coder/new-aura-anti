@@ -15,8 +15,19 @@ import {
   Zap,
   CheckCircle2,
   Lock,
-  ShieldCheck
+  ShieldCheck,
+  Timer
 } from 'lucide-react';
+
+/**
+ * Unified posture quality evaluator to prevent color & threshold logic drift
+ */
+export const checkIsGoodForm = (exerciseType, angle) => {
+  if (exerciseType === 'Plank') {
+    return angle >= 165 && angle <= 180;
+  }
+  return angle < 100; // Squats & Push-ups target depth
+};
 
 export default function AICamera({ 
   onBack, 
@@ -30,11 +41,13 @@ export default function AICamera({
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const animationFrameId = useRef(null);
+  const plankTimerRef = useRef(null);
 
   // Exercise and Tracking State
   const [count, setCount] = useState(0);
   const [exerciseType, setExerciseType] = useState('Squats'); // 'Squats' | 'Push-ups' | 'Plank'
   const [jointAngle, setJointAngle] = useState(175);
+  const [plankHoldSeconds, setPlankHoldSeconds] = useState(0);
   const [postureFeedback, setPostureFeedback] = useState("Position entire body in camera frame");
   const [postureQuality, setPostureQuality] = useState('good'); // 'good' | 'warning'
   const [isSaving, setIsSaving] = useState(false);
@@ -48,6 +61,9 @@ export default function AICamera({
   // Strict Concurrency Guards for 1-write-per-rep guarantees
   const isInRepRef = useRef(false);
   const isProcessingRepRef = useRef(false);
+
+  // Unified single-source form validity check
+  const isGoodForm = checkIsGoodForm(exerciseType, jointAngle);
 
   // Exercise Specific Metadata Definitions
   const EXERCISE_CONFIG = {
@@ -78,8 +94,8 @@ export default function AICamera({
       defaultAngle: 178,
       thresholdDown: 160,
       thresholdUp: 175,
-      feedbackDown: '⚠️ Adjust Hips: Keep spine neutral & straight',
-      feedbackUp: '💎 Rock-Solid Core Alignment Maintained (+10 XP)'
+      feedbackDown: '⚠️ Adjust Hips: Keep spine neutral (165°–180°)',
+      feedbackUp: '💎 5-Second Core Hold Completed (+10 XP)!'
     }
   };
 
@@ -90,9 +106,11 @@ export default function AICamera({
     setExerciseType(newType);
     const config = EXERCISE_CONFIG[newType] || EXERCISE_CONFIG['Squats'];
     setJointAngle(config.defaultAngle);
+    setPlankHoldSeconds(0);
     isInRepRef.current = false;
     setPostureFeedback(`Ready for ${newType}. Position body in frame.`);
     setPostureQuality('good');
+    if (plankTimerRef.current) clearInterval(plankTimerRef.current);
   };
 
   // Initialize Camera Stream & Dynamic Canvas Alignment
@@ -143,6 +161,9 @@ export default function AICamera({
       if (animationFrameId.current) {
         cancelAnimationFrame(animationFrameId.current);
       }
+      if (plankTimerRef.current) {
+        clearInterval(plankTimerRef.current);
+      }
     };
   }, [initWebcam]);
 
@@ -158,7 +179,7 @@ export default function AICamera({
     } catch (e) {}
   };
 
-  // Safe Rep Completion: Pure state update + isolated side-effects
+  // Safe Rep / Round Completion: Pure state update + isolated side-effects
   const handleRepCompleted = useCallback((reps = 1) => {
     if (isProcessingRepRef.current) return;
     isProcessingRepRef.current = true;
@@ -195,19 +216,16 @@ export default function AICamera({
   const updateAngleAndEvaluate = useCallback((newAngle) => {
     setJointAngle(newAngle);
     const config = EXERCISE_CONFIG[exerciseType] || EXERCISE_CONFIG['Squats'];
+    const validForm = checkIsGoodForm(exerciseType, newAngle);
 
     if (exerciseType === 'Plank') {
-      if (newAngle >= 165 && newAngle <= 180) {
-        setPostureFeedback("🟢 Core Engaged — Neutral Spine Maintained");
+      if (validForm) {
+        setPostureFeedback("🟢 Core Engaged — Holding Neutral Spine (5s Hold Target)");
         setPostureQuality('good');
-        if (!isInRepRef.current) {
-          isInRepRef.current = true;
-          handleRepCompleted(1);
-        }
       } else {
-        setPostureFeedback("⚠️ Adjust Core: Spine sagging or over-extended");
+        setPostureFeedback(config.feedbackDown);
         setPostureQuality('warning');
-        isInRepRef.current = false;
+        setPlankHoldSeconds(0);
       }
     } else {
       // Squats & Push-ups
@@ -229,6 +247,32 @@ export default function AICamera({
   useEffect(() => {
     updateAngleAndEvaluateRef.current = updateAngleAndEvaluate;
   }, [updateAngleAndEvaluate]);
+
+  // Live Isometric Plank Hold Timer Effect (Requires continuous good posture)
+  useEffect(() => {
+    if (exerciseType !== 'Plank') {
+      if (plankTimerRef.current) clearInterval(plankTimerRef.current);
+      return;
+    }
+
+    if (isGoodForm) {
+      plankTimerRef.current = setInterval(() => {
+        setPlankHoldSeconds((prev) => {
+          if (prev + 1 >= 5) {
+            handleRepCompleted(1);
+            return 0; // Reset for next 5-second hold round
+          }
+          return prev + 1;
+        });
+      }, 1000);
+    } else {
+      if (plankTimerRef.current) clearInterval(plankTimerRef.current);
+    }
+
+    return () => {
+      if (plankTimerRef.current) clearInterval(plankTimerRef.current);
+    };
+  }, [exerciseType, isGoodForm, handleRepCompleted]);
 
   // Canvas HUD Overlay Loop with Auto-Sizing
   useEffect(() => {
@@ -260,8 +304,9 @@ export default function AICamera({
       const ankleLX = w * 0.43, ankleRX = w * 0.57;
       const ankleY = h * 0.90;
 
-      // Draw Skeleton Lines
-      ctx.strokeStyle = jointAngle < 100 || (exerciseType === 'Plank' && jointAngle >= 165) ? '#10b981' : '#38bdf8';
+      // Draw Skeleton Lines using unified isGoodForm check
+      const currentFormGood = checkIsGoodForm(exerciseType, jointAngle);
+      ctx.strokeStyle = currentFormGood ? '#10b981' : '#38bdf8';
       ctx.lineWidth = 3;
       ctx.shadowBlur = 12;
       ctx.shadowColor = ctx.strokeStyle;
@@ -320,7 +365,7 @@ export default function AICamera({
 
       ctx.beginPath();
       ctx.arc(arcX, arcY, 22, -Math.PI / 2, Math.PI / 2);
-      ctx.strokeStyle = jointAngle < 100 || (exerciseType === 'Plank' && jointAngle >= 165) ? '#10b981' : '#f59e0b';
+      ctx.strokeStyle = currentFormGood ? '#10b981' : '#f59e0b';
       ctx.lineWidth = 2.5;
       ctx.stroke();
 
@@ -340,7 +385,7 @@ export default function AICamera({
     };
   }, [jointAngle, exerciseType]);
 
-  // Smooth AI Rep Simulation with Ref-protected closure
+  // Smooth AI Rep Simulation with Ref-protected closure & Isometric Plank Countdown
   const handleSimulateRep = () => {
     if (isSimulating) return;
     setIsSimulating(true);
@@ -358,14 +403,21 @@ export default function AICamera({
         setIsSimulating(false);
       }, 850);
     } else {
-      // Plank hold simulation
-      updateAngleAndEvaluateRef.current(155); // Sagging
-      setTimeout(() => {
-        updateAngleAndEvaluateRef.current(178); // Perfect neutral spine
-        setTimeout(() => {
-          setIsSimulating(false);
-        }, 850);
-      }, 500);
+      // Plank Isometric Hold Simulation (Simulates 1s -> 2s -> 3s -> 4s -> 5s Hold)
+      updateAngleAndEvaluateRef.current(178); // Perfect neutral spine
+      setPlankHoldSeconds(1);
+      
+      const interval = setInterval(() => {
+        setPlankHoldSeconds((prev) => {
+          if (prev >= 4) {
+            clearInterval(interval);
+            handleRepCompleted(1);
+            setIsSimulating(false);
+            return 0;
+          }
+          return prev + 1;
+        });
+      }, 700);
     }
   };
 
@@ -567,21 +619,23 @@ export default function AICamera({
             <Activity size={14} color="#10b981" />
             <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '700' }}>{exerciseType} Form</span>
           </div>
-          <p style={{ margin: 0, fontSize: '13px', fontWeight: '700', color: postureQuality === 'good' ? '#34d399' : '#fbbf24' }}>
+          <p style={{ margin: 0, fontSize: '13px', fontWeight: '700', color: isGoodForm ? '#34d399' : '#fbbf24' }}>
             {postureFeedback}
           </p>
 
           <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '16px' }}>
             <div>
               <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{currentConfig.angleName}</span>
-              <p style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: jointAngle < 100 || (exerciseType === 'Plank' && jointAngle >= 165) ? '#10b981' : '#f59e0b' }}>
+              <p style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: isGoodForm ? '#10b981' : '#f59e0b' }}>
                 {jointAngle}°
               </p>
             </div>
             <div>
-              <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Target Goal</span>
+              <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                {exerciseType === 'Plank' ? 'Hold Progress' : 'Target Goal'}
+              </span>
               <p style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: '#38bdf8' }}>
-                {currentConfig.targetGoal}
+                {exerciseType === 'Plank' ? `${plankHoldSeconds}s / 5s` : currentConfig.targetGoal}
               </p>
             </div>
           </div>
@@ -601,7 +655,7 @@ export default function AICamera({
           boxShadow: '0 4px 15px rgba(0,0,0,0.6)'
         }}>
           <span style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '700' }}>
-            {exerciseType === 'Plank' ? 'Rounds' : 'Total Reps'}
+            {exerciseType === 'Plank' ? 'Hold Rounds' : 'Total Reps'}
           </span>
           <h3 style={{ margin: 0, fontSize: '28px', color: '#fff', fontWeight: '900' }}>
             {count}
@@ -622,7 +676,10 @@ export default function AICamera({
           style={{ padding: '12px 28px', fontSize: '15px' }}
         >
           <Zap size={18} />
-          {isSimulating ? `Evaluating ${exerciseType}...` : `Execute AI ${exerciseType} Rep (+10 XP) ⚡`}
+          {isSimulating 
+            ? (exerciseType === 'Plank' ? `Holding Plank (${plankHoldSeconds}s/5s)...` : `Evaluating ${exerciseType}...`)
+            : (exerciseType === 'Plank' ? `Execute 5s Plank Hold (+10 XP) ⚡` : `Execute AI ${exerciseType} Rep (+10 XP) ⚡`)
+          }
         </button>
       </div>
 
