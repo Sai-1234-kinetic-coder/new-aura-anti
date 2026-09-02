@@ -1,134 +1,85 @@
-# 🔥 AuraFit — Gamified Campus Fitness & AI Posture Corrector
+# AuraFit
 
-> **Smart India Hackathon 2026 Submission** | **Problem ID:** SIH26196  
-> **Theme:** Fitness & Sports (Student Innovation Track)  
-> *Built with React 19, Vite, Firebase, and lots of late-night chai ☕ by a team of 6 college students.*
+AuraFit is a web app we built for Smart India Hackathon 2026 (Problem Statement SIH26196). The idea is simple: most students can't afford a smartwatch or gym subscription, and workout videos on YouTube don't tell you if your form is actually correct. So we built something that uses your laptop/phone camera to check your exercise form in real time, right in the browser, no extra hardware needed.
 
-[![SIH 2026](https://img.shields.io/badge/SIH-2026_Project-10B981?style=for-the-badge&logo=target)](https://sih.gov.in)
-[![Tech Stack](https://img.shields.io/badge/Stack-React_19_|_Vite_|_Firebase-F59E0B?style=for-the-badge&logo=react)](https://react.dev)
-[![Status](https://img.shields.io/badge/Status-Hackathon_Ready-38BDF8?style=for-the-badge)](https://sih.gov.in)
+On top of that we added a couple of things to make it more fun to actually use:
+- **Department Wars** – your points add up to your department's (CSE, ECE, EEE, MECH) total, so it turns into a friendly competition.
+- **Buddy Finder** – find other students who work out at the same time/place as you.
 
----
+## How it works
 
-## 👋 Hey there! Welcome to AuraFit
+We use pose tracking to get 17 body joint positions from the camera feed and calculate joint angles from them (hip/knee/ankle for squats, shoulder/elbow/wrist for push-ups, etc.) using basic vector math — take two vectors between the joints and get the angle from their dot product:
 
-Staying active in college is hard. Between morning lectures, coding assignments, and hostel life, finding motivation to exercise alone in a hostel room usually fizzles out after three days. Most fitness apps either require expensive fitness bands or charge expensive monthly subscriptions.
-
-We built **AuraFit** to fix this! It is a free, lightweight web app that turns fitness on campus into a fun, social experience:
-
-1. 🏋️ **AI Posture Arena:** Use your laptop or phone camera to track your exercise form in real-time (**Squats**, **Push-ups**, and **Plank**). No videos are ever sent to a server — everything runs 100% privately in your browser!
-2. 🏆 **Department Wars:** Every completed rep earns Aura XP for your branch (CSE vs ECE vs MECH vs EEE). Compete to see which department takes #1 on campus!
-3. 🤝 **Campus Buddy Finder:** Filter students by branch, hostel, sports (running, gym, yoga, badminton), and workout times to find an accountability partner.
-4. 📊 **Daily Student Dashboard:** Keep track of your daily water intake, step goals, sleep hours, and recent workouts.
-
----
-
-## ✨ Features at a Glance
-
-| Feature | What it does |
-| :--- | :--- |
-| **🤖 Real-Time AI Form Check** | Tracks 17 body keypoints with camera HUD overlays and angle calculation. Gives instant feedback if your squat is deep enough or your spine is straight during planks. |
-| **⚡ 1-Click Jury Demo Mode** | Test the full experience instantly as CSE or ECE without typing in credentials. |
-| **⚔️ Department Wars Leaderboard** | Live real-time scoreboards syncing branch XP and celebrating campus top athletes. |
-| **👥 Buddy Matcher** | Multi-filter search across departments, hostels, sports, and timings with instant invite cards. |
-| **💧 Hydration & Activity Tracker** | Interactive water logger (`+250ml`), step counter, and manual workout logger saved to local storage and Firestore. |
-| **🔔 Glassmorphism Toast UI** | Smooth, non-blocking toast notifications for workout saves and invitations. |
-
----
-
-## 🛠️ How It Works Under the Hood
-
-### System Workflow
-
-```mermaid
-flowchart TD
-    A["📷 Device Camera"] --> B["⚡ WASM / WebGL Landmark Engine"]
-    B --> C["17 Body Joint Coordinates"]
-    C --> D["📐 Vector Joint Angle Math"]
-    D --> E{"Form Check"}
-    E -->|"Good Depth / Alignment"| F["🎉 Confetti & XP Awarded"]
-    E -->|"Needs Correction"| G["⚠️ Live Form Feedback"]
-    F --> H["☁️ Firebase Firestore Sync"]
-    H --> I["🏆 Live Department Standings"]
+```
+θ = arccos( (u · v) / (|u| |v|) ) × 180/π
 ```
 
-### 📐 The Math Behind Joint Tracking
-To calculate joint flexion (such as the knee angle during squats, elbow angle during push-ups, or spine alignment in planks), we compute the angle $\theta$ between vectors formed by the joint coordinates:
+Each exercise has its own thresholds:
+- **Squats** – depth counted below ~90° knee angle, rep confirmed once you stand back up past ~160°.
+- **Push-ups** – same idea but at the elbow: below ~90° at the bottom, past ~160° at lockout.
+- **Plank** – instead of a rep, this one checks you're holding a neutral spine angle (165°–180°) continuously for 5 seconds before it counts a round. Sagging or over-extending resets the timer.
 
-$$\vec{u} = \text{Joint}_1 - \text{Joint}_2 \quad\text{and}\quad \vec{v} = \text{Joint}_3 - \text{Joint}_2$$
+```
+webcam → pose landmarks → joint angle → rep/hold detected → points saved to Firebase → leaderboard updates
+```
 
-$$\theta = \arccos\left(\text{clamp}\left(\frac{\vec{u} \cdot \vec{v}}{\|\vec{u}\| \|\vec{v}\|}, -1.0, 1.0\right)\right) \times \frac{180^\circ}{\pi}$$
+## Features
 
-- **Squats:** Detects depth when knee angle drops below $90^\circ$ and counts a rep when you stand back up ($> 160^\circ$).
-- **Push-ups:** Tracks chest drop ($< 90^\circ$) and full lockout ($> 160^\circ$).
-- **Plank:** Measures neutral spine alignment ($165^\circ - 180^\circ$) and awards XP for continuous 5-second isometric holds.
+- Real-time form tracking for squats, push-ups, and plank, with a skeleton overlay on the camera feed
+- Live angle readout + feedback text telling you what to fix
+- Department leaderboard (CSE vs ECE vs EEE vs MECH), updates live via Firestore
+- Buddy finder with filters for department, activity, and time slot
+- Dashboard with water intake, steps, and manual workout logging
+- Demo login button so you don't need to create an account just to try it out
+- Works without a webcam too — there's a "simulate" button as a fallback for judging/testing
+- Toast notifications instead of browser `alert()` popups
 
----
+## Tech stack
 
-## 💻 Tech Stack We Used
+- React 19 + Vite
+- Firebase (Auth + Firestore) for accounts, points, and the live leaderboard
+- `canvas-confetti` for the little celebration animation on rep completion
+- Plain CSS, no UI framework
 
-- **Frontend:** React 19, JavaScript (ES6+), Vanilla CSS with custom glassmorphism design tokens
-- **Build Tool:** Vite 7 (super-fast hot module reloading & lightweight bundles)
-- **Backend & Database:** Firebase Auth, Cloud Firestore (Real-time `onSnapshot` listeners)
-- **Icons & Effects:** Lucide React, Canvas-Confetti
-- **Privacy:** 100% client-side video processing — zero frames saved or uploaded
+## Running it locally
 
----
-
-## 🚀 Running the Project Locally
-
-Want to test AuraFit on your machine? Here's how to get it running in 2 minutes:
-
-### 1. Clone the repository
 ```bash
 git clone https://github.com/Sai-1234-kinetic-coder/aurafit-2026.git
 cd aurafit-2026
-```
-
-### 2. Install dependencies
-```bash
 npm install
+npm run dev
 ```
 
-### 3. Set up environment variables
-Copy the example environment file:
+If you want to use your own Firebase project, copy `.env.example` to `.env` and fill in your project's keys:
+
 ```bash
 cp .env.example .env
 ```
-*(Optional) Add your Firebase project credentials to `.env`. Even without Firebase keys, the app includes full offline and demo simulation modes!*
 
-### 4. Start the development server
-```bash
-npm run dev
 ```
-Open your browser at `http://localhost:3000` to start exploring!
+VITE_FIREBASE_API_KEY=...
+VITE_FIREBASE_AUTH_DOMAIN=...
+VITE_FIREBASE_PROJECT_ID=...
+VITE_FIREBASE_STORAGE_BUCKET=...
+VITE_FIREBASE_MESSAGING_SENDER_ID=...
+VITE_FIREBASE_APP_ID=...
+```
 
----
+Without a `.env`, guest/demo login and the offline fallback leaderboard still work, but real sign-in and live Firestore sync won't — so make sure `.env` is set (both locally and on wherever you deploy it) before a real demo.
 
-## 📱 Tested on Real Student Devices
+## Known limitations
 
-We tested AuraFit across multiple screen sizes to make sure it runs smoothly for every student:
-- 💻 **Laptops & Desktops** (Chrome, Firefox, Edge, Brave)
-- 📱 **Budget Android Phones** (Smooth responsive layout, single-column mode)
-- 📟 **College Tablets** (Samsung Galaxy Tab A7 tested with dynamic canvas dimension auto-alignment)
+- Rep/hold detection is angle-based, so odd camera angles can throw it off
+- Leaderboard numbers fall back to hardcoded baseline values if Firestore can't be reached (e.g. campus wifi blocking it)
+- No real pose-detection model wired in yet for the camera feed itself — the "simulate" button drives the demo for now
 
----
+## Team
 
-## 👥 The Team
-
-We are a group of college students passionate about software, sports, and AI:
-
-- 👨‍💻 **Lalam Chandramouli** — *Team Lead & Architecture*
-- 🧠 **Lalam Sai Bharadwaj** — *Pose Estimation & Joint Math*
-- ☁️ **Kandregula Veda Laxmi** — *Backend & Database Sync*
-- 🎨 **Lalam Kalpana** — *UI/UX Design System & Leaderboards*
-- 🤝 **Kasireddi Spandana** — *Buddy Finder & Community Features*
-- 🔍 **Kovvuri Naveena** — *Device Testing & QA*
-
----
-
-## 🌟 Acknowledgements
-
-Huge thanks to **AICTE** and the **Smart India Hackathon 2026** team for the opportunity to build and showcase this project!
-
-*If you like this project, feel free to give it a ⭐ on GitHub!*
+| Name | Worked on |
+| --- | --- |
+| Lalam Chandramouli | Overall architecture, repo, deployment |
+| Lalam Sai Bharadwaj | Pose tracking & angle math |
+| Kandregula Veda Laxmi | Firebase auth & Firestore |
+| Lalam Kalpana | UI, dashboard, department wars |
+| Kasireddi Spandana | Buddy finder |
+| Kovvuri Naveena | Testing on low-end devices |
