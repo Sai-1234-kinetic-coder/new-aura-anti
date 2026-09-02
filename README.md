@@ -1,100 +1,134 @@
-# 🔥 AuraFit — Real-Time AI Pose Estimation & Gamified Campus Fitness Platform
+# 🔥 AuraFit — Gamified Campus Fitness & AI Posture Corrector
 
-[![Smart India Hackathon 2026](https://img.shields.io/badge/SIH-2026_Nominated-10B981?style=for-the-badge&logo=target)](https://sih.gov.in)
-[![AICTE Theme](https://img.shields.io/badge/Track-Fitness_&_Sports-38BDF8?style=for-the-badge)](https://sih.gov.in)
+> **Smart India Hackathon 2026 Submission** | **Problem ID:** SIH26196  
+> **Theme:** Fitness & Sports (Student Innovation Track)  
+> *Built with React 19, Vite, Firebase, and lots of late-night chai ☕ by a team of 6 college students.*
+
+[![SIH 2026](https://img.shields.io/badge/SIH-2026_Project-10B981?style=for-the-badge&logo=target)](https://sih.gov.in)
 [![Tech Stack](https://img.shields.io/badge/Stack-React_19_|_Vite_|_Firebase-F59E0B?style=for-the-badge&logo=react)](https://react.dev)
-[![Rubric Score](https://img.shields.io/badge/Evaluation_Score-96.5_/_100-F59E0B?style=for-the-badge)](https://sih.gov.in)
-
-> **Problem Statement ID:** SIH26196  
-> **Sponsoring Organization:** AICTE (All India Council for Technical Education)  
-> **Category:** Software Track (Student Innovation)  
+[![Status](https://img.shields.io/badge/Status-Hackathon_Ready-38BDF8?style=for-the-badge)](https://sih.gov.in)
 
 ---
 
-## 🌟 Executive Overview & Problem Definition
+## 👋 Hey there! Welcome to AuraFit
 
-Commercial fitness platforms require expensive wearable devices (smartwatches, chest straps) or charge recurring subscription fees. Additionally, pre-recorded workout videos provide no posture feedback, leading to poor form and workout injuries.
+Staying active in college is hard. Between morning lectures, coding assignments, and hostel life, finding motivation to exercise alone in a hostel room usually fizzles out after three days. Most fitness apps either require expensive fitness bands or charge expensive monthly subscriptions.
 
-**AuraFit** is a zero-hardware, on-device, gamified Progressive Web App (PWA). It runs in any modern browser to track 17 skeletal joint coordinates in real time via WebAssembly and WebGL for instant posture correction. It turns campus fitness into a collaborative sport through **Live Department Wars (CSE vs ECE)** and a **Campus Workout Buddy Finder**.
+We built **AuraFit** to fix this! It is a free, lightweight web app that turns fitness on campus into a fun, social experience:
+
+1. 🏋️ **AI Posture Arena:** Use your laptop or phone camera to track your exercise form in real-time (**Squats**, **Push-ups**, and **Plank**). No videos are ever sent to a server — everything runs 100% privately in your browser!
+2. 🏆 **Department Wars:** Every completed rep earns Aura XP for your branch (CSE vs ECE vs MECH vs EEE). Compete to see which department takes #1 on campus!
+3. 🤝 **Campus Buddy Finder:** Filter students by branch, hostel, sports (running, gym, yoga, badminton), and workout times to find an accountability partner.
+4. 📊 **Daily Student Dashboard:** Keep track of your daily water intake, step goals, sleep hours, and recent workouts.
 
 ---
 
-## 🛠️ System Architecture & Workflow
+## ✨ Features at a Glance
+
+| Feature | What it does |
+| :--- | :--- |
+| **🤖 Real-Time AI Form Check** | Tracks 17 body keypoints with camera HUD overlays and angle calculation. Gives instant feedback if your squat is deep enough or your spine is straight during planks. |
+| **⚡ 1-Click Jury Demo Mode** | Test the full experience instantly as CSE or ECE without typing in credentials. |
+| **⚔️ Department Wars Leaderboard** | Live real-time scoreboards syncing branch XP and celebrating campus top athletes. |
+| **👥 Buddy Matcher** | Multi-filter search across departments, hostels, sports, and timings with instant invite cards. |
+| **💧 Hydration & Activity Tracker** | Interactive water logger (`+250ml`), step counter, and manual workout logger saved to local storage and Firestore. |
+| **🔔 Glassmorphism Toast UI** | Smooth, non-blocking toast notifications for workout saves and invitations. |
+
+---
+
+## 🛠️ How It Works Under the Hood
+
+### System Workflow
 
 ```mermaid
 flowchart TD
-    A["Student Webcam Feed"] --> B["WASM / WebGL Engine"]
-    B --> C["17 Joint Skeletal Landmarks"]
-    C --> D["Joint Flexion Angle Computation"]
-    D --> E["Rep Detected and Confirmed"]
-    E --> F["AI-to-Database Points Bridge"]
-    F --> G["Firebase Firestore"]
-    G --> H["Live Department Wars Leaderboard"]
-    G --> I["Student Profile & Streaks"]
-    G --> J["Campus Buddy Matcher"]
+    A["📷 Device Camera"] --> B["⚡ WASM / WebGL Landmark Engine"]
+    B --> C["17 Body Joint Coordinates"]
+    C --> D["📐 Vector Joint Angle Math"]
+    D --> E{"Form Check"}
+    E -->|"Good Depth / Alignment"| F["🎉 Confetti & XP Awarded"]
+    E -->|"Needs Correction"| G["⚠️ Live Form Feedback"]
+    F --> H["☁️ Firebase Firestore Sync"]
+    H --> I["🏆 Live Department Standings"]
 ```
 
----
+### 📐 The Math Behind Joint Tracking
+To calculate joint flexion (such as the knee angle during squats, elbow angle during push-ups, or spine alignment in planks), we compute the angle $\theta$ between vectors formed by the joint coordinates:
 
-## 🚀 Core Features
+$$\vec{u} = \text{Joint}_1 - \text{Joint}_2 \quad\text{and}\quad \vec{v} = \text{Joint}_3 - \text{Joint}_2$$
 
-### 1. Real-Time AI Posture Arena
-- **Zero Latency, 100% Privacy:** Runs entirely on-device with zero cloud video streaming costs.
-- **17-Point Joint Tracking:** Visual HUD overlay rendering head, shoulders, elbows, hips, knees, and ankles.
-- **Dynamic Knee Flexion Gauge:** Real-time angle calculation ensuring deep squat compliance (< 90 degrees).
-- **Infinite-Write Loop Guard:** Strict boolean state lock guaranteeing strictly **1 atomic Firestore write per rep**.
+$$\theta = \arccos\left(\text{clamp}\left(\frac{\vec{u} \cdot \vec{v}}{\|\vec{u}\| \|\vec{v}\|}, -1.0, 1.0\right)\right) \times \frac{180^\circ}{\pi}$$
 
-### 2. Live Campus Department Wars (CSE vs ECE)
-- Real-time `onSnapshot` listener aggregating points across departments.
-- Animated dynamic rankings and percentage share charts.
-- Top Campus Athlete MVP leaderboards.
-
-### 3. Campus Workout Buddy Matching System
-- Multi-filter search by Department (CSE, ECE, EEE, MECH), Activity (Gym, Running, Yoga), and preferred Time Slot.
-- Interactive invite dispatch system for joint streaks and peer accountability.
-
-### 4. Interactive Health Dashboard
-- Daily steps tracking, interactive water logger (`+250ml`), and sleep efficiency score.
-- Manual activity logging with instant Firestore persistence.
+- **Squats:** Detects depth when knee angle drops below $90^\circ$ and counts a rep when you stand back up ($> 160^\circ$).
+- **Push-ups:** Tracks chest drop ($< 90^\circ$) and full lockout ($> 160^\circ$).
+- **Plank:** Measures neutral spine alignment ($165^\circ - 180^\circ$) and awards XP for continuous 5-second isometric holds.
 
 ---
 
-## 🧪 SIH Test Suites & Verification Matrix
+## 💻 Tech Stack We Used
 
-### 🔹 Test Suite 1: Configuration & Environment Interpolation (Vite)
-- **Status:** ✅ **Passed**. Credentials loaded via `import.meta.env.VITE_FIREBASE_...` with safe fallback keys.
-
-### 🔹 Test Suite 3: Real-Time Joint Trigonometry (Sai Bharadwaj)
-- **Formula:** 
-  $$\theta = \arccos\left(\frac{\vec{u} \cdot \vec{v}}{\|\vec{u}\|\|\vec{v}\|}\right) \times \frac{180^\circ}{\pi}$$
-- **State Machine:** Standing ($> 160^\circ$) $\to$ Deep Squat ($< 90^\circ$) $\to$ Standing ($> 160^\circ$) triggers rep confirmation and +10 XP.
-
-### 🔹 Test Suite 4 & 5: Database & Leaderboard Sync (Veda Laxmi & Kalpana)
-- **Status:** ✅ **Passed**. Atomic `increment(10 * reps)` updates user profile and recalculates CSE vs ECE points in real-time.
-
-### 🔹 Hardware QA & Tablet Testing (Kovvuri Naveena)
-- **Samsung Galaxy Tab A7 ($2000 \times 1200$):** Dynamic resolution sync on `video.onloadedmetadata` ensures **0px canvas offset**.
+- **Frontend:** React 19, JavaScript (ES6+), Vanilla CSS with custom glassmorphism design tokens
+- **Build Tool:** Vite 7 (super-fast hot module reloading & lightweight bundles)
+- **Backend & Database:** Firebase Auth, Cloud Firestore (Real-time `onSnapshot` listeners)
+- **Icons & Effects:** Lucide React, Canvas-Confetti
+- **Privacy:** 100% client-side video processing — zero frames saved or uploaded
 
 ---
 
-## 👥 Team Roles & Ownership Matrix
+## 🚀 Running the Project Locally
 
-| Name | Role | Core Responsibility |
-| :--- | :--- | :--- |
-| **Lalam Chandramouli** | Team Leader & DevOps | Architecture, Repository Management & Vercel Deployment |
-| **Lalam Sai Bharadwaj** | ML / Computer Vision | Pose Estimation, Joint Angle Math & Rep Logic |
-| **Kandregula Veda Laxmi** | Backend Engineer | Firebase Auth, Firestore Data Models & Points Bridge |
-| **Lalam Kalpana** | Frontend Engineer | UI/UX Design System, Dashboard, and Department Wars |
-| **Kasireddi Spandana** | Community Logic | BuddyFinder Multi-Filter Logic & Campus Database |
-| **Kovvuri Naveena** | QA & Evaluation Lead | Budget Device Testing (Samsung Tab A7) & Presentation |
+Want to test AuraFit on your machine? Here's how to get it running in 2 minutes:
+
+### 1. Clone the repository
+```bash
+git clone https://github.com/Sai-1234-kinetic-coder/aurafit-2026.git
+cd aurafit-2026
+```
+
+### 2. Install dependencies
+```bash
+npm install
+```
+
+### 3. Set up environment variables
+Copy the example environment file:
+```bash
+cp .env.example .env
+```
+*(Optional) Add your Firebase project credentials to `.env`. Even without Firebase keys, the app includes full offline and demo simulation modes!*
+
+### 4. Start the development server
+```bash
+npm run dev
+```
+Open your browser at `http://localhost:3000` to start exploring!
 
 ---
 
-## 📑 Official SIH 6-Slide Pitch Deck Structure
+## 📱 Tested on Real Student Devices
 
-1. **Slide 1 — Title & Problem Statement:** AuraFit (SIH26196), AICTE Track, Team Overview.
-2. **Slide 2 — The Problem Gap:** High cost of wearables ($100+), 90% risk of home workout injuries, lack of campus peer motivation.
-3. **Slide 3 — The AuraFit Solution:** On-device AI pose estimation + Gamified Department Wars + Buddy Matching.
-4. **Slide 4 — Technical Architecture:** MoveNet 17-point tracking, vector angle math, atomic Firestore Points Bridge.
-5. **Slide 5 — Business, Scalability & Campus Impact:** PWA architecture, zero GPU inference costs, inter-college tournaments.
-6. **Slide 6 — Demo & Conclusion:** Live demonstration + 60-second backup video contingency.
+We tested AuraFit across multiple screen sizes to make sure it runs smoothly for every student:
+- 💻 **Laptops & Desktops** (Chrome, Firefox, Edge, Brave)
+- 📱 **Budget Android Phones** (Smooth responsive layout, single-column mode)
+- 📟 **College Tablets** (Samsung Galaxy Tab A7 tested with dynamic canvas dimension auto-alignment)
+
+---
+
+## 👥 The Team
+
+We are a group of college students passionate about software, sports, and AI:
+
+- 👨‍💻 **Lalam Chandramouli** — *Team Lead & Architecture*
+- 🧠 **Lalam Sai Bharadwaj** — *Pose Estimation & Joint Math*
+- ☁️ **Kandregula Veda Laxmi** — *Backend & Database Sync*
+- 🎨 **Lalam Kalpana** — *UI/UX Design System & Leaderboards*
+- 🤝 **Kasireddi Spandana** — *Buddy Finder & Community Features*
+- 🔍 **Kovvuri Naveena** — *Device Testing & QA*
+
+---
+
+## 🌟 Acknowledgements
+
+Huge thanks to **AICTE** and the **Smart India Hackathon 2026** team for the opportunity to build and showcase this project!
+
+*If you like this project, feel free to give it a ⭐ on GitHub!*
