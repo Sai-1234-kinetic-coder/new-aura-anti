@@ -535,14 +535,14 @@ export default function AICamera({
       {/* Title & Live Status */}
       <div style={{ textAlign: 'center', marginBottom: '20px' }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-          <span className="badge badge-dept">WASM / WebGL MoveNet Engine</span>
-          <span className="badge badge-xp">SIH Track 1</span>
+          <span className="badge badge-dept">Live Camera</span>
+          <span className="badge badge-xp">Auto Form Detection</span>
         </div>
         <h2 style={{ fontSize: '24px', color: '#fff', margin: '0 0 4px 0' }}>
-          Real-Time AI Posture & Form Corrector ⚡
+          AI Posture Arena 🏋️
         </h2>
         <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>
-          Tracking <strong>{exerciseType}</strong> with 17-Point Joint Coordinate Edge Inference
+          Real-time posture feedback for <strong>{exerciseType}</strong> — 100% on-device & private
         </p>
       </div>
 

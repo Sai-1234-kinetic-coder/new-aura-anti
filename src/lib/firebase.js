@@ -1,4 +1,3 @@
-// src/lib/firebase.js
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { 
@@ -15,7 +14,6 @@ import {
   serverTimestamp 
 } from "firebase/firestore";
 
-// Official SIH26196 Firebase Configuration with Vite environment variable support
 const firebaseConfig = {
   apiKey: import.meta.env?.VITE_FIREBASE_API_KEY || "",
   authDomain: import.meta.env?.VITE_FIREBASE_AUTH_DOMAIN || "",
@@ -30,13 +28,7 @@ const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 
-/* ==========================================================================
-   AuraFit Backend Logic — Module Integration
-   ========================================================================== */
-
-/**
- * Initialize or update user profile with department on signup
- */
+// Create user profile document in Firestore
 export async function createUserProfile(userId, email, department = "CSE", displayName = "") {
   if (!userId) return;
   const userRef = doc(db, "users", userId);
@@ -51,17 +43,12 @@ export async function createUserProfile(userId, email, department = "CSE", displ
       createdAt: serverTimestamp(),
       lastActive: serverTimestamp()
     }, { merge: true });
-    console.log(`[Firebase] Profile created for ${email} (${department})`);
   } catch (error) {
-    console.error("[Firebase] Error creating user profile:", error);
+    console.error("Error creating user profile:", error);
   }
 }
 
-/**
- * Task 1: AI-to-Database Points Bridge
- * Atomically increments user points in Firestore (+10 XP per squat rep)
- * Uses setDoc with merge:true to safely handle new or existing documents
- */
+// Add earned points to user account
 export async function addSquatPoints(userId, reps = 1) {
   if (!userId) return;
   const userRef = doc(db, "users", userId);
@@ -71,16 +58,12 @@ export async function addSquatPoints(userId, reps = 1) {
       squatCount: increment(reps),
       lastActive: serverTimestamp()
     }, { merge: true });
-    console.log(`[Firebase] Awarded ${10 * reps} Aura Points to ${userId}`);
   } catch (error) {
-    console.error("[Firebase] Error updating user points in Firestore:", error);
+    console.error("Error updating points:", error);
   }
 }
 
-/**
- * Task 2: Real-time Department Leaderboard Sync (CSE vs ECE vs EEE vs MECH)
- * Subscribes to live user points and aggregates totals per department
- */
+// Listen to department leaderboard updates in real-time
 export function subscribeToDepartmentLeaderboard(onUpdate) {
   const usersQuery = query(collection(db, "users"), orderBy("totalPoints", "desc"), limit(100));
 
@@ -122,7 +105,7 @@ export function subscribeToDepartmentLeaderboard(onUpdate) {
       topAthletes: topAthletes.slice(0, 5)
     });
   }, (error) => {
-    console.warn("[Firebase] Using baseline leaderboard data:", error.message);
+    console.warn("Using offline leaderboard data:", error.message);
     onUpdate({
       departments: [
         { department: 'CSE', points: 340 },
@@ -141,9 +124,7 @@ export function subscribeToDepartmentLeaderboard(onUpdate) {
   });
 }
 
-/**
- * Save manual or AI workout to Firestore
- */
+// Log workout to Firestore
 export async function logWorkout(userId, exercise, duration, pointsEarned = 0) {
   if (!userId) return;
   try {
@@ -155,6 +136,6 @@ export async function logWorkout(userId, exercise, duration, pointsEarned = 0) {
       createdAt: serverTimestamp()
     });
   } catch (error) {
-    console.error("[Firebase] Error logging workout:", error);
+    console.error("Error logging workout:", error);
   }
 }

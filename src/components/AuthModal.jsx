@@ -146,7 +146,7 @@ export default function AuthModal({ onClose, onGuestLogin }) {
           textAlign: 'center'
         }}>
           <span style={{ fontSize: '11px', color: '#34d399', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-            <Zap size={14} /> 1-Click Instant Demo Login (For SIH Jury)
+            <Zap size={14} /> Quick Demo Login
           </span>
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginTop: '8px' }}>
             <button 
@@ -156,7 +156,7 @@ export default function AuthModal({ onClose, onGuestLogin }) {
               style={{ flex: 1, padding: '7px 10px', fontSize: '12px' }}
               disabled={loading}
             >
-              Demo as CSE ⚡
+              Demo as CSE
             </button>
             <button 
               type="button"
@@ -165,7 +165,7 @@ export default function AuthModal({ onClose, onGuestLogin }) {
               style={{ flex: 1, padding: '7px 10px', fontSize: '12px' }}
               disabled={loading}
             >
-              Demo as ECE ⚡
+              Demo as ECE
             </button>
           </div>
         </div>

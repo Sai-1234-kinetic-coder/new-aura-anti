@@ -39,7 +39,7 @@ export default function DepartmentWars({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
           <div>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-              <span className="badge badge-streak">🔥 SIH Track 2 Live</span>
+              <span className="badge badge-streak">🔥 Live Standings</span>
               <span className="badge badge-dept">Realtime Sync</span>
             </div>
             <h2 style={{ fontSize: '26px', color: '#fff', margin: '0 0 6px 0' }}>

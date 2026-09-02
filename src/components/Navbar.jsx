@@ -42,13 +42,13 @@ export default function Navbar({
               <span style={{ fontSize: '20px', fontWeight: '900', letterSpacing: '-0.03em', background: 'linear-gradient(90deg, #10b981, #38bdf8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                 AURAFIT
               </span>
-              <span className="badge badge-dept" style={{ fontSize: '10px', padding: '2px 6px' }}>SIH26196</span>
+              <span className="badge badge-dept" style={{ fontSize: '10px', padding: '2px 6px' }}>Campus Beta</span>
             </div>
             <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-muted)', fontWeight: '500' }}>Gamified Campus Fitness & AI Posture</p>
           </div>
         </div>
 
-        {/* Global Navigation Tabs (Accessible to all users & evaluators) */}
+        {/* Navigation Tabs */}
         <nav style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <button 
             onClick={() => setActiveTab('dashboard')} 
@@ -65,7 +65,7 @@ export default function Navbar({
             style={{ padding: '8px 14px', fontSize: '13px' }}
           >
             <Camera size={16} />
-            AI Pose Arena
+            AI Arena
           </button>
 
           <button 
@@ -125,7 +125,7 @@ export default function Navbar({
               style={{ padding: '8px 16px', fontSize: '13px' }}
             >
               <ShieldCheck size={16} />
-              Student Access ⚡
+              Student Login
             </button>
           </div>
         )}

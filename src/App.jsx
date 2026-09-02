@@ -79,7 +79,7 @@ export default function App() {
       }
     });
 
-    // Realtime Department Leaderboard Listener (SIH Task 2)
+    // Live department leaderboard listener
     const unsubLeaderboard = subscribeToDepartmentLeaderboard((data) => {
       if (data?.departments) {
         setDeptLeaderboard(data.departments);

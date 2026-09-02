@@ -69,8 +69,8 @@ export default function BuddyFinder() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
           <div>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-              <span className="badge badge-dept">SIH Track 4: Community</span>
-              <span className="badge badge-xp">Peer Accountability</span>
+              <span className="badge badge-dept">Campus Network</span>
+              <span className="badge badge-xp">Find Partners</span>
             </div>
             <h2 style={{ fontSize: '24px', color: '#fff', margin: '0 0 6px 0' }}>
               Find a Campus Workout Buddy 🤝
