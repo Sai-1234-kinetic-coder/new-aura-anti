@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo, useRef } from 'react';
 import { CheckCircle2, AlertCircle, AlertTriangle, Info, X } from 'lucide-react';
 
 const ToastContext = createContext(null);
@@ -12,25 +12,31 @@ export function ToastProvider({ children }) {
 
   const addToast = useCallback((message, type = 'success', duration = 4000) => {
     const id = `toast_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
-    const newToast = { id, message, type, duration };
-
-    setToasts((prev) => [...prev, newToast]);
+    setToasts((prev) => [...prev, { id, message, type, duration }]);
 
     if (duration > 0) {
-      setTimeout(() => {
-        removeToast(id);
-      }, duration);
+      setTimeout(() => removeToast(id), duration);
     }
   }, [removeToast]);
 
-  const toast = useCallback((message, type, duration) => {
-    addToast(message, type, duration);
-  }, [addToast]);
+  /**
+   * Stable toast API object — built once via useMemo so callers that
+   * destructure `toast.success` etc. always get the same reference.
+   * The addToastRef ensures the shorthand methods always call the
+   * latest `addToast` without needing to re-create the API object.
+   */
+  const addToastRef = useRef(addToast);
+  addToastRef.current = addToast;
 
-  toast.success = (msg, duration) => addToast(msg, 'success', duration);
-  toast.error = (msg, duration) => addToast(msg, 'error', duration);
-  toast.warning = (msg, duration) => addToast(msg, 'warning', duration);
-  toast.info = (msg, duration) => addToast(msg, 'info', duration);
+  const toast = useMemo(() => {
+    const fn = (message, type, duration) => addToastRef.current(message, type, duration);
+    fn.success = (msg, duration) => addToastRef.current(msg, 'success', duration);
+    fn.error   = (msg, duration) => addToastRef.current(msg, 'error',   duration);
+    fn.warning = (msg, duration) => addToastRef.current(msg, 'warning', duration);
+    fn.info    = (msg, duration) => addToastRef.current(msg, 'info',    duration);
+    return fn;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally stable — ref pattern handles freshness
 
   return (
     <ToastContext.Provider value={{ toast, addToast, removeToast }}>

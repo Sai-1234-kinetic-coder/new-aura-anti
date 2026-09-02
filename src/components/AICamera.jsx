@@ -469,7 +469,7 @@ export default function AICamera({
   };
 
   return (
-    <div className="glass-card" style={{ padding: '24px', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+    <div className="glass-card animate-fade-in-up" style={{ padding: '24px', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
       
       {/* Top Controls */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>

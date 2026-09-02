@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useToast } from './ToastContext';
+import { logWorkout, logDailyMetrics, subscribeToUserDailyLog } from '../lib/firebase';
 import { 
   Flame, 
   Droplet, 
@@ -16,7 +17,7 @@ import {
   TrendingUp,
   RefreshCw
 } from 'lucide-react';
-import { logWorkout } from '../lib/firebase';
+
 
 export default function Dashboard({ 
   user, 
@@ -29,19 +30,37 @@ export default function Dashboard({
   onLocalWorkoutLogged 
 }) {
   const toast = useToast();
-  // Interactive Water Logger (Persisted in localStorage)
+
+  // Interactive Water Logger (Persisted in localStorage + Firestore daily_logs)
   const [waterAmount, setWaterAmount] = useState(() => {
     const saved = localStorage.getItem('aurafit_water');
     return saved ? Number(saved) : 2.2;
   });
   const waterTarget = 3.5;
 
-  // Interactive Daily Steps Simulator
+  // Interactive Daily Steps Simulator (Persisted in localStorage + Firestore daily_logs)
   const [steps, setSteps] = useState(() => {
     const saved = localStorage.getItem('aurafit_steps');
     return saved ? Number(saved) : 8420;
   });
   const stepTarget = 10000;
+
+  // Sync today's daily log from Firestore on mount (so values survive page reload)
+  useEffect(() => {
+    if (!user?.uid) return;
+    const unsub = subscribeToUserDailyLog(user.uid, (data) => {
+      if (data.steps !== undefined) {
+        setSteps(data.steps);
+        localStorage.setItem('aurafit_steps', String(data.steps));
+      }
+      if (data.waterLiters !== undefined) {
+        setWaterAmount(data.waterLiters);
+        localStorage.setItem('aurafit_water', String(data.waterLiters));
+      }
+    });
+    return () => unsub();
+  }, [user?.uid]);
+
 
   // Manual Activity Logger State
   const [exerciseName, setExerciseName] = useState('');
@@ -52,12 +71,20 @@ export default function Dashboard({
     const nextAmount = Math.min(Number((waterAmount + 0.25).toFixed(2)), waterTarget);
     setWaterAmount(nextAmount);
     localStorage.setItem('aurafit_water', nextAmount.toString());
+    // Persist to Firestore daily_logs (fire-and-forget; localStorage is the sync fallback)
+    if (user?.uid) {
+      logDailyMetrics(user.uid, { waterLiters: nextAmount }).catch(() => {});
+    }
   };
 
   const handleAddSteps = () => {
     const nextSteps = Math.min(steps + 500, 15000);
     setSteps(nextSteps);
     localStorage.setItem('aurafit_steps', nextSteps.toString());
+    // Persist to Firestore daily_logs
+    if (user?.uid) {
+      logDailyMetrics(user.uid, { steps: nextSteps }).catch(() => {});
+    }
   };
 
   const handleLogManualActivity = async (e) => {
@@ -93,7 +120,7 @@ export default function Dashboard({
   const stepPercent = Math.min(Math.round((steps / stepTarget) * 100), 100);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+    <div className="animate-fade-in-up" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       
       {/* Welcome & Campus Banner */}
       <div className="glass-card glow-emerald" style={{

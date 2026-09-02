@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useToast } from './ToastContext';
+import { sendBuddyInvite, getMyBuddyInvites } from '../lib/firebase';
 import { 
   Users, 
   Search, 
@@ -29,18 +30,32 @@ const MOCK_CAMPUS_PROFILES = [
   { id: 12, name: "Tara Sengupta", dept: "ECE", year: "4th Year", sport: "Running", time: "5:00 PM", streak: "22 Days", level: "Campus Legend", bio: "Evening campus jogging with audio podcasts.", hostel: "Day Scholar" },
 ];
 
-export default function BuddyFinder() {
+export default function BuddyFinder({ user }) {
   const toast = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDept, setSelectedDept] = useState("ALL");
   const [selectedSport, setSelectedSport] = useState("ALL");
   const [selectedTime, setSelectedTime] = useState("ALL");
   
-  // Persisted Invited Buddies
+  // Persisted Invited Buddies (localStorage as sync cache; Firestore as source of truth)
   const [invitedIds, setInvitedIds] = useState(() => {
     const saved = localStorage.getItem('aurafit_buddies_invited');
     return saved ? JSON.parse(saved) : [];
   });
+
+  // Load existing Firestore invites on mount and merge with localStorage cache
+  useEffect(() => {
+    if (!user?.uid) return;
+    getMyBuddyInvites(user.uid).then((firestoreIds) => {
+      if (firestoreIds.length > 0) {
+        setInvitedIds((prev) => {
+          const merged = [...new Set([...prev, ...firestoreIds])];
+          localStorage.setItem('aurafit_buddies_invited', JSON.stringify(merged));
+          return merged;
+        });
+      }
+    }).catch(() => {}); // silently fall back to localStorage on error
+  }, [user?.uid]);
 
   // Client-Side Multi-Filter Logic
   const filteredBuddies = MOCK_CAMPUS_PROFILES.filter((buddy) => {
@@ -54,10 +69,20 @@ export default function BuddyFinder() {
     return matchDept && matchSport && matchTime && matchSearch;
   });
 
-  const handleInvite = (id, name) => {
+  const handleInvite = async (id, name, sport) => {
     const nextInvited = [...invitedIds, id];
     setInvitedIds(nextInvited);
     localStorage.setItem('aurafit_buddies_invited', JSON.stringify(nextInvited));
+
+    // Persist to Firestore; fall back silently if offline
+    if (user?.uid) {
+      try {
+        await sendBuddyInvite(user.uid, id, sport);
+      } catch {
+        // Already saved to localStorage above — no action needed
+      }
+    }
+
     toast.success(`🤝 Workout buddy invite sent to ${name}! You will earn +20 bonus XP on your joint streak.`);
   };
 
@@ -219,7 +244,7 @@ export default function BuddyFinder() {
 
                 {/* Invite Action Button */}
                 <button
-                  onClick={() => handleInvite(buddy.id, buddy.name)}
+                  onClick={() => handleInvite(buddy.id, buddy.name, buddy.sport)}
                   disabled={isInvited}
                   className={`btn ${isInvited ? 'btn-secondary' : 'btn-cyan'}`}
                   style={{ width: '100%', padding: '9px', fontSize: '13px' }}

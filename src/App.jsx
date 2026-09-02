@@ -170,7 +170,7 @@ export default function App() {
               onLaunchArena={() => setActiveTab('camera')}
             />
           ) : activeTab === 'buddies' ? (
-            <BuddyFinder />
+            <BuddyFinder user={user} />
           ) : (
             <Dashboard 
               user={user}

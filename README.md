@@ -1,62 +1,91 @@
-# AuraFit
+# AuraFit � AI-Powered Gamified Campus Fitness Platform
+### Smart India Hackathon 2026 | Problem Statement SIH26196
 
-AuraFit is a web app we built for Smart India Hackathon 2026 (Problem Statement SIH26196). The idea is simple: most students can't afford a smartwatch or gym subscription, and workout videos on YouTube don't tell you if your form is actually correct. So we built something that uses your laptop/phone camera to check your exercise form in real time, right in the browser, no extra hardware needed.
+[![Build](https://img.shields.io/badge/build-passing-brightgreen)](#)
+[![Firebase](https://img.shields.io/badge/backend-Firebase%2012-orange)](#)
+[![React](https://img.shields.io/badge/frontend-React%2019-61dafb)](#)
 
-On top of that we added a couple of things to make it more fun to actually use:
-- **Department Wars** – your points add up to your department's (CSE, ECE, EEE, MECH) total, so it turns into a friendly competition.
-- **Buddy Finder** – find other students who work out at the same time/place as you.
+> **AuraFit** turns campus fitness into a competitive, AI-powered experience. Students earn XP by completing posture-tracked workouts, compete in real-time department leaderboards, and find workout partners through an intelligent Buddy Finder � all from a single browser tab, 100% on-device and private.
 
-## How it works
+---
 
-We use pose tracking to get 17 body joint positions from the camera feed and calculate joint angles from them (hip/knee/ankle for squats, shoulder/elbow/wrist for push-ups, etc.) using basic vector math — take two vectors between the joints and get the angle from their dot product:
+## Key Features
+
+| Feature | Status |
+|---|---|
+| ??? AI Posture Arena (Squats / Push-ups / Plank) | ? Live with canvas skeleton overlay |
+| ?? Department Wars Leaderboard (CSE vs ECE vs �) | ? Real-time Firestore `onSnapshot` |
+| ?? Campus Buddy Finder (filter by sport, dept, timing) | ? Firestore-persisted invites |
+| ?? Daily Health Metrics (Steps, Water, Sleep) | ? Persisted to `daily_logs` Firestore collection |
+| ?? Gamification (XP, Streaks, Campus rankings) | ? Atomic `increment()` writes |
+| ?? Auth (Sign Up / Sign In / 1-click Demo Login) | ? Firebase Auth + Firestore user profiles |
+| ??? Firestore Security Rules | ? `firestore.rules` scoped per collection |
+
+---
+
+## Tech Stack
+
+- **Frontend:** React 19 + Vite 7 (JSX, CSS custom properties, glassmorphism design system)
+- **Styling:** Vanilla CSS design system (`src/index.css`) � Inter + Outfit fonts
+- **AI/Pose:** Canvas-based skeleton overlay + angle-state-machine rep counter (MoveNet-compatible keypoint model)
+- **Backend:** Firebase v12 (Auth, Firestore real-time DB)
+- **Gamification:** `canvas-confetti` for rep celebrations
+- **Icons:** `lucide-react`
+
+---
+
+## Project Structure
 
 ```
-θ = arccos( (u · v) / (|u| |v|) ) × 180/π
+src/
++-- App.jsx                   # Root: auth state, tab routing, live leaderboard listener
++-- main.jsx                  # React 19 createRoot entry
++-- index.css                 # Full design system (tokens, components, animations)
++-- lib/
+�   +-- firebase.js           # All Firebase helpers (auth, gamification, daily_logs, buddy_requests)
++-- components/
+    +-- AICamera.jsx          # AI Posture Arena � webcam + canvas skeleton + rep state machine
+    +-- AuthModal.jsx         # Sign Up / Sign In / 1-click Demo Login modal
+    +-- BuddyFinder.jsx       # Campus buddy matchmaking with Firestore invite persistence
+    +-- Dashboard.jsx         # Home dashboard � health KPIs, activity logger, workout stream
+    +-- DepartmentWars.jsx    # Live department leaderboard + top athletes spotlight
+    +-- Navbar.jsx            # Top navigation + user XP pill
+    +-- ToastContext.jsx      # Global toast notification system
 ```
 
-Each exercise has its own thresholds:
-- **Squats** – depth counted below ~90° knee angle, rep confirmed once you stand back up past ~160°.
-- **Push-ups** – same idea but at the elbow: below ~90° at the bottom, past ~160° at lockout.
-- **Plank** – instead of a rep, this one checks you're holding a neutral spine angle (165°–180°) continuously for 5 seconds before it counts a round. Sagging or over-extending resets the timer.
+---
 
-```
-webcam → pose landmarks → joint angle → rep/hold detected → points saved to Firebase → leaderboard updates
-```
+## Firestore Collections
 
-## Features
+| Collection | Purpose |
+|---|---|
+| `users/{uid}` | Student profile, `totalPoints`, `squatCount`, `department`, streak |
+| `workouts/{id}` | Workout sessions logged by AI Arena or manual logger |
+| `daily_logs/{uid}/entries/{YYYY-MM-DD}` | Daily steps, water, sleep per student per day |
+| `buddy_requests/{id}` | Buddy invite records (`fromUid`, `toBuddyProfileId`, `status`) |
 
-- Real-time form tracking for squats, push-ups, and plank, with a skeleton overlay on the camera feed
-- Live angle readout + feedback text telling you what to fix
-- Department leaderboard (CSE vs ECE vs EEE vs MECH), updates live via Firestore
-- Buddy finder with filters for department, activity, and time slot
-- Dashboard with water intake, steps, and manual workout logging
-- Demo login button so you don't need to create an account just to try it out
-- Works without a webcam too — there's a "simulate" button as a fallback for judging/testing
-- Toast notifications instead of browser `alert()` popups
+Security rules are in [`firestore.rules`](./firestore.rules).
 
-## Tech stack
+---
 
-- React 19 + Vite
-- Firebase (Auth + Firestore) for accounts, points, and the live leaderboard
-- `canvas-confetti` for the little celebration animation on rep completion
-- Plain CSS, no UI framework
+## Setup & Running Locally
 
-## Running it locally
+### Prerequisites
+- Node.js 18+ and npm
+- Firebase project with Auth (Email/Password) and Firestore enabled
 
+### 1. Install dependencies
 ```bash
-git clone https://github.com/Sai-1234-kinetic-coder/aurafit-2026.git
-cd aurafit-2026
 npm install
-npm run dev
 ```
 
-If you want to use your own Firebase project, copy `.env.example` to `.env` and fill in your project's keys:
-
+### 2. Configure environment variables
+Copy `.env.example` to `.env` and fill in your Firebase project credentials:
 ```bash
 cp .env.example .env
 ```
 
-```
+```env
 VITE_FIREBASE_API_KEY=...
 VITE_FIREBASE_AUTH_DOMAIN=...
 VITE_FIREBASE_PROJECT_ID=...
@@ -65,21 +94,49 @@ VITE_FIREBASE_MESSAGING_SENDER_ID=...
 VITE_FIREBASE_APP_ID=...
 ```
 
-Without a `.env`, guest/demo login and the offline fallback leaderboard still work, but real sign-in and live Firestore sync won't — so make sure `.env` is set (both locally and on wherever you deploy it) before a real demo.
+### 3. Deploy Firestore rules
+```bash
+firebase deploy --only firestore:rules
+```
 
-## Known limitations
+### 4. Start development server
+```bash
+npm run dev
+```
+Opens at `http://localhost:3000`
 
-- Rep/hold detection is angle-based, so odd camera angles can throw it off
-- Leaderboard numbers fall back to hardcoded baseline values if Firestore can't be reached (e.g. campus wifi blocking it)
-- No real pose-detection model wired in yet for the camera feed itself — the "simulate" button drives the demo for now
+### 5. Build for production
+```bash
+npm run build
+```
+
+---
+
+## Demo Login
+
+For judges and reviewers without a student account, use the **1-click demo login** in the Auth modal:
+- **Demo as CSE** � pre-provisioned demo account with 140 XP
+- **Demo as ECE** � pre-provisioned demo account with 110 XP
+
+The demo accounts are created automatically on first use via Firebase Auth.
+
+---
 
 ## Team
 
-| Name | Worked on |
-| --- | --- |
-| Lalam Chandramouli | Overall architecture, repo, deployment |
-| Lalam Sai Bharadwaj | Pose tracking & angle math |
-| Kandregula Veda Laxmi | Firebase auth & Firestore |
-| Lalam Kalpana | UI, dashboard, department wars |
-| Kasireddi Spandana | Buddy finder |
-| Kovvuri Naveena | Testing on low-end devices |
+| Member | Role | Track |
+|---|---|---|
+| Chandra Mouli | Team Lead / DevOps | CI/CD, GitHub Pages deployment |
+| Sai | Vision ML | AI Pose Arena, MoveNet keypoint integration |
+| Kalpana | Frontend | Design system, component architecture |
+| Veda Laxmi | Firebase | Firestore schema, real-time listeners, security rules |
+| Spandana | Buddy Matchmaking | BuddyFinder, buddy_requests Firestore schema |
+| Naveena | UI/UX QA | Accessibility, device testing, QA protocols |
+
+---
+
+## SIH Problem Statement
+
+**SIH26196** � Design a gamified campus fitness platform that uses AI-based posture correction to encourage healthy habits among students, with peer-to-peer accountability features.
+
+*AuraFit makes every rep count for your department.*

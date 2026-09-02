@@ -127,6 +127,15 @@ h1, h2, h3, h4, h5, h6 {
   border: none;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   outline: none;
+  white-space: nowrap;
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+  transform: none !important;
+  box-shadow: none !important;
 }
 
 .btn-primary {
@@ -140,6 +149,11 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
 }
 
+.btn-primary:active {
+  transform: translateY(0) scale(0.97);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
 .btn-cyan {
   background: linear-gradient(135deg, #0ea5e9, #0284c7);
   color: #ffffff;
@@ -149,6 +163,20 @@ h1, h2, h3, h4, h5, h6 {
 .btn-cyan:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(14, 165, 233, 0.5);
+}
+
+.btn-cyan:active {
+  transform: translateY(0) scale(0.97);
+  box-shadow: 0 2px 8px rgba(14, 165, 233, 0.3);
+}
+
+/* Explicit glow modifier for cyan buttons (used in AICamera) */
+.btn.glow-cyan {
+  box-shadow: 0 4px 14px rgba(14, 165, 233, 0.35), 0 0 20px rgba(6, 182, 212, 0.2);
+}
+
+.btn.glow-cyan:hover {
+  box-shadow: 0 6px 24px rgba(14, 165, 233, 0.55), 0 0 32px rgba(6, 182, 212, 0.3);
 }
 
 .btn-secondary {
@@ -346,5 +374,36 @@ h1, h2, h3, h4, h5, h6 {
     opacity: 1;
     transform: translateX(0) scale(1);
   }
+}
+
+/* Panel mount animation — used by AICamera and modal cards */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Pulsing ring for live camera indicator */
+@keyframes livePulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.15); }
+}
+
+.live-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  animation: livePulse 1.5s ease-in-out infinite;
 }
 
