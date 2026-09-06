@@ -64,7 +64,15 @@ export default function AICamera({
   const isInRepRef = useRef(false);
   const isProcessingRepRef = useRef(false);
 
-  // Check Form Form Function
+  // MediaPipe Pose Tracking Ref & State
+  const poseEngineRef = useRef(null);
+  const lastLandmarksRef = useRef(null);
+  const [isMediaPipeActive, setIsMediaPipeActive] = useState(false);
+  const [mirrorVideo] = useState(() => {
+    return typeof localStorage !== 'undefined' ? localStorage.getItem('aurafit_mirror_video') !== 'false' : true;
+  });
+
+  // Check Form Function
   const isGoodForm = (exerciseType === 'Plank' || exerciseType === 'Warrior II')
     ? (jointAngle >= activeExercise.thresholdDown && jointAngle <= activeExercise.thresholdUp)
     : (jointAngle <= activeExercise.thresholdDown);
@@ -259,12 +267,158 @@ export default function AICamera({
     }, 600);
   };
 
-  // Draw Skeleton Overlay Canvas
+  // Real MediaPipe Pose Evaluator
+  const evaluatePoseFromLandmarks = useCallback((lm) => {
+    if (!lm || lm.length < 29) return;
+    let angle = activeExercise.defaultAngle;
+
+    if (exerciseType === 'Squats') {
+      const rVis = (lm[24]?.visibility || 0) + (lm[26]?.visibility || 0) + (lm[28]?.visibility || 0);
+      const lVis = (lm[23]?.visibility || 0) + (lm[25]?.visibility || 0) + (lm[27]?.visibility || 0);
+      if (rVis >= lVis && lm[24] && lm[26] && lm[28]) {
+        angle = calculateJointAngle(lm[24], lm[26], lm[28]);
+      } else if (lm[23] && lm[25] && lm[27]) {
+        angle = calculateJointAngle(lm[23], lm[25], lm[27]);
+      }
+    } else if (exerciseType === 'Pushups') {
+      const rVis = (lm[12]?.visibility || 0) + (lm[14]?.visibility || 0) + (lm[16]?.visibility || 0);
+      const lVis = (lm[11]?.visibility || 0) + (lm[13]?.visibility || 0) + (lm[15]?.visibility || 0);
+      if (rVis >= lVis && lm[12] && lm[14] && lm[16]) {
+        angle = calculateJointAngle(lm[12], lm[14], lm[16]);
+      } else if (lm[11] && lm[13] && lm[15]) {
+        angle = calculateJointAngle(lm[11], lm[13], lm[15]);
+      }
+    } else if (exerciseType === 'Lunges') {
+      const rVis = (lm[24]?.visibility || 0) + (lm[26]?.visibility || 0);
+      const lVis = (lm[23]?.visibility || 0) + (lm[25]?.visibility || 0);
+      if (rVis >= lVis && lm[24] && lm[26] && lm[28]) {
+        angle = calculateJointAngle(lm[24], lm[26], lm[28]);
+      } else if (lm[23] && lm[25] && lm[27]) {
+        angle = calculateJointAngle(lm[23], lm[25], lm[27]);
+      }
+    } else if (exerciseType === 'Plank') {
+      const s = lm[12] || lm[11];
+      const h = lm[24] || lm[23];
+      const a = lm[28] || lm[27];
+      if (s && h && a) {
+        angle = calculateJointAngle(s, h, a);
+      }
+    } else if (exerciseType === 'Jumping Jacks') {
+      if (lm[24] && lm[12] && lm[16]) {
+        angle = calculateJointAngle(lm[24], lm[12], lm[16]);
+      }
+    } else if (exerciseType === 'Warrior II') {
+      if (lm[23] && lm[25] && lm[27]) {
+        angle = calculateJointAngle(lm[23], lm[25], lm[27]);
+      }
+    }
+
+    if (angle > 15 && angle <= 180) {
+      updateAngleAndEvaluate(angle);
+    }
+  }, [exerciseType, activeExercise, updateAngleAndEvaluate]);
+
+  // Initialize MediaPipe Pose Instance
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const setupPose = () => {
+      if (!window.Pose) return false;
+      try {
+        const pose = new window.Pose({
+          locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+        });
+
+        pose.setOptions({
+          modelComplexity: 0,
+          smoothLandmarks: true,
+          enableSegmentation: false,
+          minDetectionConfidence: 0.5,
+          minTrackingConfidence: 0.5
+        });
+
+        pose.onResults((results) => {
+          if (results.poseLandmarks && results.poseLandmarks.length > 0) {
+            lastLandmarksRef.current = results.poseLandmarks;
+            setIsMediaPipeActive(true);
+            evaluatePoseFromLandmarks(results.poseLandmarks);
+          } else {
+            lastLandmarksRef.current = null;
+          }
+        });
+
+        poseEngineRef.current = pose;
+        setIsMediaPipeActive(true);
+        return true;
+      } catch (e) {
+        console.warn("MediaPipe Pose load note:", e);
+        return false;
+      }
+    };
+
+    if (!setupPose()) {
+      const pollTimer = setInterval(() => {
+        if (setupPose()) clearInterval(pollTimer);
+      }, 600);
+      return () => clearInterval(pollTimer);
+    }
+
+    return () => {
+      if (poseEngineRef.current) {
+        try { poseEngineRef.current.close(); } catch (e) {}
+      }
+    };
+  }, [evaluatePoseFromLandmarks]);
+
+  // Video Frame Pump Loop for MediaPipe
+  useEffect(() => {
+    let isProcessing = false;
+    let loopId;
+
+    const framePump = async () => {
+      if (
+        cameraActive &&
+        videoRef.current &&
+        videoRef.current.readyState >= 2 &&
+        poseEngineRef.current &&
+        !isProcessing
+      ) {
+        isProcessing = true;
+        try {
+          await poseEngineRef.current.send({ image: videoRef.current });
+        } catch (err) {
+          // Handled silently to avoid dropping video frames
+        } finally {
+          isProcessing = false;
+        }
+      }
+      loopId = requestAnimationFrame(framePump);
+    };
+
+    if (cameraActive) {
+      loopId = requestAnimationFrame(framePump);
+    }
+
+    return () => {
+      if (loopId) cancelAnimationFrame(loopId);
+    };
+  }, [cameraActive]);
+
+  // Draw Skeleton Overlay Canvas (Real MediaPipe Landmarks + Stylized Guide Fallback)
   useEffect(() => {
     let animId;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
+
+    const POSE_CONNECTIONS = [
+      [11, 12], // shoulders
+      [11, 13], [13, 15], // left arm
+      [12, 14], [14, 16], // right arm
+      [11, 23], [12, 24], [23, 24], // torso
+      [23, 25], [25, 27], // left leg
+      [24, 26], [26, 28]  // right leg
+    ];
 
     const renderOverlay = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -273,76 +427,101 @@ export default function AICamera({
       const h = canvas.height;
       const isGood = isGoodForm;
       const strokeColor = isGood ? '#10b981' : '#f43f5e';
+      const realLandmarks = lastLandmarksRef.current;
 
-      // Draw stylized biomechanical tracking skeleton
-      ctx.lineWidth = 4;
-      ctx.strokeStyle = strokeColor;
-      ctx.fillStyle = isGood ? '#38bdf8' : '#fb7185';
+      if (realLandmarks && realLandmarks.length > 0) {
+        // Draw REAL detected human skeleton lines
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = strokeColor;
+        ctx.lineCap = 'round';
 
-      // Head
-      ctx.beginPath();
-      ctx.arc(w * 0.5, h * 0.25, 20, 0, Math.PI * 2);
-      ctx.stroke();
+        POSE_CONNECTIONS.forEach(([startIdx, endIdx]) => {
+          const p1 = realLandmarks[startIdx];
+          const p2 = realLandmarks[endIdx];
+          if (p1 && p2 && (p1.visibility || 1) > 0.4 && (p2.visibility || 1) > 0.4) {
+            ctx.beginPath();
+            ctx.moveTo(p1.x * w, p1.y * h);
+            ctx.lineTo(p2.x * w, p2.y * h);
+            ctx.stroke();
+          }
+        });
 
-      // Torso / Spine
-      ctx.beginPath();
-      ctx.moveTo(w * 0.5, h * 0.29);
-      ctx.lineTo(w * 0.5, h * 0.55);
-      ctx.stroke();
+        // Draw glowing joint keypoints
+        realLandmarks.forEach((pt, idx) => {
+          if (idx >= 11 && idx <= 28 && (pt.visibility || 1) > 0.4) {
+            ctx.beginPath();
+            ctx.arc(pt.x * w, pt.y * h, 5, 0, Math.PI * 2);
+            ctx.fillStyle = isGood ? '#38bdf8' : '#fb7185';
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+          }
+        });
 
-      // Arms / Shoulders
-      ctx.beginPath();
-      ctx.moveTo(w * 0.38, h * 0.42);
-      ctx.lineTo(w * 0.5, h * 0.35);
-      ctx.lineTo(w * 0.62, h * 0.42);
-      ctx.stroke();
+        // Draw Active HUD Joint Indicator & Angle Tag
+        const trackedIdx = exerciseType === 'Squats' || exerciseType === 'Lunges' ? 26 :
+                           exerciseType === 'Pushups' ? 14 : 24;
+        const trackedPt = realLandmarks[trackedIdx] || realLandmarks[26];
+        if (trackedPt && (trackedPt.visibility || 1) > 0.4) {
+          const px = trackedPt.x * w;
+          const py = trackedPt.y * h;
 
-      // Legs / Knee Flexion
-      const kneeFlexY = isGood ? h * 0.72 : h * 0.68;
-      ctx.beginPath();
-      ctx.moveTo(w * 0.5, h * 0.55);
-      ctx.lineTo(w * 0.42, kneeFlexY);
-      ctx.lineTo(w * 0.42, h * 0.88);
-      ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(px, py, 26, 0, (jointAngle / 180) * Math.PI);
+          ctx.strokeStyle = isGood ? '#10b981' : '#f59e0b';
+          ctx.lineWidth = 4;
+          ctx.stroke();
 
-      ctx.beginPath();
-      ctx.moveTo(w * 0.5, h * 0.55);
-      ctx.lineTo(w * 0.58, kneeFlexY);
-      ctx.lineTo(w * 0.58, h * 0.88);
-      ctx.stroke();
+          // Angle Badge on Canvas
+          ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+          ctx.fillRect(px + 12, py - 14, 52, 22);
+          ctx.fillStyle = isGood ? '#10b981' : '#f59e0b';
+          ctx.font = 'bold 12px Inter, sans-serif';
+          ctx.fillText(`${jointAngle}°`, px + 18, py + 2);
+        }
+      } else {
+        // Fallback: Guide Silhouette Overlay when user is stepping into frame
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.2)';
 
-      // Keypoint Joint Dots
-      const joints = [
-        { x: w * 0.5, y: h * 0.35 },
-        { x: w * 0.38, y: h * 0.42 },
-        { x: w * 0.62, y: h * 0.42 },
-        { x: w * 0.5, y: h * 0.55 },
-        { x: w * 0.42, y: kneeFlexY },
-        { x: w * 0.58, y: kneeFlexY },
-        { x: w * 0.42, y: h * 0.88 },
-        { x: w * 0.58, y: h * 0.88 }
-      ];
-
-      joints.forEach(j => {
+        // Head guide
         ctx.beginPath();
-        ctx.arc(j.x, j.y, 6, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.arc(w * 0.5, h * 0.25, 20, 0, Math.PI * 2);
         ctx.stroke();
-      });
 
-      // Joint Angle HUD Arc on Primary Joint
-      ctx.beginPath();
-      ctx.arc(w * 0.42, kneeFlexY, 24, 0, (jointAngle / 180) * Math.PI);
-      ctx.strokeStyle = isGood ? '#10b981' : '#f59e0b';
-      ctx.lineWidth = 3;
-      ctx.stroke();
+        // Spine
+        ctx.beginPath();
+        ctx.moveTo(w * 0.5, h * 0.29);
+        ctx.lineTo(w * 0.5, h * 0.55);
+        ctx.stroke();
+
+        // Shoulders
+        ctx.beginPath();
+        ctx.moveTo(w * 0.38, h * 0.42);
+        ctx.lineTo(w * 0.5, h * 0.35);
+        ctx.lineTo(w * 0.62, h * 0.42);
+        ctx.stroke();
+
+        // Legs
+        const kneeFlexY = isGood ? h * 0.72 : h * 0.68;
+        ctx.beginPath();
+        ctx.moveTo(w * 0.5, h * 0.55);
+        ctx.lineTo(w * 0.42, kneeFlexY);
+        ctx.lineTo(w * 0.42, h * 0.88);
+        ctx.moveTo(w * 0.5, h * 0.55);
+        ctx.lineTo(w * 0.58, kneeFlexY);
+        ctx.lineTo(w * 0.58, h * 0.88);
+        ctx.stroke();
+      }
 
       animId = requestAnimationFrame(renderOverlay);
     };
 
     renderOverlay();
     return () => cancelAnimationFrame(animId);
-  }, [isGoodForm, jointAngle]);
+  }, [isGoodForm, jointAngle, exerciseType]);
 
   // Save Workout Session
   const handleSaveWorkout = async () => {
@@ -402,6 +581,9 @@ export default function AICamera({
                 AI Vision Posture Arena
               </h2>
               <span className="badge badge-dept" style={{ fontSize: '10px' }}>Chamber 2</span>
+              <span className={`badge ${isMediaPipeActive ? 'badge-streak' : 'badge-dept'}`} style={{ fontSize: '10px' }}>
+                {isMediaPipeActive ? '⚡ MediaPipe 33-Point Vision' : 'AI Vision'}
+              </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--text-muted)' }}>
               <span className="live-indicator" />
@@ -483,7 +665,7 @@ export default function AICamera({
               width: '100%',
               height: '100%',
               objectFit: 'cover',
-              transform: 'scaleX(-1)', // mirror for natural movement
+              transform: mirrorVideo ? 'scaleX(-1)' : 'none',
               display: cameraActive ? 'block' : 'none'
             }}
           />
@@ -497,7 +679,7 @@ export default function AICamera({
               width: '100%',
               height: '100%',
               pointerEvents: 'none',
-              transform: 'scaleX(-1)'
+              transform: mirrorVideo ? 'scaleX(-1)' : 'none'
             }}
           />
 

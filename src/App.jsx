@@ -15,6 +15,7 @@ import AICamera from './components/AICamera';
 import DepartmentWars from './components/DepartmentWars';
 import BuddyFinder from './components/BuddyFinder';
 import AuthModal from './components/AuthModal';
+import SettingsModal from './components/SettingsModal';
 import ErrorBoundary from './components/ErrorBoundary';
 import { ToastProvider } from './components/ToastContext';
 
@@ -31,6 +32,7 @@ export default function App() {
   const [userProfile, setUserProfile] = useState(null);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
 
   // Realtime Data State
   const [deptLeaderboard, setDeptLeaderboard] = useState([
@@ -160,6 +162,7 @@ export default function App() {
           userProfile={userProfile}
           onLogout={handleLogout}
           onOpenAuth={() => setShowAuthModal(true)}
+          onOpenSettings={() => setShowSettingsModal(true)}
         />
 
         {/* Main Tab Views Protected by Chamber Error Boundary */}
@@ -237,6 +240,12 @@ export default function App() {
             onGuestLogin={handleGuestSession}
           />
         )}
+
+        {/* Platform & AI Settings Modal */}
+        <SettingsModal 
+          isOpen={showSettingsModal} 
+          onClose={() => setShowSettingsModal(false)} 
+        />
       </div>
     </ToastProvider>
   );

@@ -77,7 +77,8 @@ export function getContextSnapshot() {
  * Synthesizes a contextual prompt response based on user mode & biometric state
  */
 export async function generateCoachResponse(userMessage, modeId, context, onChunk) {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  const apiKey = (typeof localStorage !== 'undefined' && localStorage.getItem('aurafit_gemini_api_key')) || 
+                 import.meta.env?.VITE_GEMINI_API_KEY || '';
   const isMedicalQuery = /pain|hurt|injury|torn|sprain|fracture|doctor|medicine|pill|disease|diagnos/i.test(userMessage);
 
   // If Gemini API Key is provided, call Gemini 1.5 Flash

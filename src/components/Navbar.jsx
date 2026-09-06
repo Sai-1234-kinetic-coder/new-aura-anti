@@ -14,7 +14,8 @@ import {
   LogOut, 
   ShieldCheck, 
   UserCheck,
-  HeartPulse
+  HeartPulse,
+  Settings
 } from 'lucide-react';
 
 export default function Navbar({ 
@@ -23,7 +24,8 @@ export default function Navbar({
   user, 
   userProfile, 
   onLogout, 
-  onOpenAuth 
+  onOpenAuth,
+  onOpenSettings
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -167,6 +169,17 @@ export default function Navbar({
             </button>
           )}
 
+          {/* Settings & AI Configuration Button */}
+          <button 
+            onClick={onOpenSettings} 
+            className="btn btn-secondary" 
+            style={{ padding: '7px 11px', fontSize: '12px', borderRadius: 'var(--radius-full)' }}
+            title="Configure Gemini AI, Firebase & Vision Settings"
+          >
+            <Settings size={15} />
+            <span style={{ display: 'inline' }}>Settings</span>
+          </button>
+
           {/* Mobile Menu Toggle Button */}
           <button 
             className="mobile-menu-btn"
@@ -212,6 +225,14 @@ export default function Navbar({
               </button>
             );
           })}
+          <button
+            onClick={() => { onOpenSettings(); setMobileMenuOpen(false); }}
+            className="btn btn-secondary"
+            style={{ justifyContent: 'flex-start', padding: '10px 12px', fontSize: '12px', width: '100%' }}
+          >
+            <Settings size={15} />
+            <span>AI & Platform Settings</span>
+          </button>
         </div>
       )}
 
