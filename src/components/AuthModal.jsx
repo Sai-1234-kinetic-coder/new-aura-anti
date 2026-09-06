@@ -21,6 +21,23 @@ export default function AuthModal({ onClose, onGuestLogin }) {
     setLoading(true);
 
     try {
+      if (!auth) {
+        if (!email || !password) throw new Error("Please enter both email and password.");
+        const localUid = 'athlete_' + Date.now();
+        const localProf = {
+          uid: localUid,
+          email,
+          displayName: name || email.split('@')[0],
+          department: department.toUpperCase(),
+          totalPoints: 140,
+          currentStreak: 1
+        };
+        await createUserProfile(localUid, email, department, name || email.split('@')[0]);
+        if (onGuestLogin) onGuestLogin(localProf);
+        onClose();
+        return;
+      }
+
       if (isSignUp) {
         if (!email || !password) throw new Error("Please enter both email and password.");
         const res = await createUserWithEmailAndPassword(auth, email, password);
@@ -45,6 +62,23 @@ export default function AuthModal({ onClose, onGuestLogin }) {
     const demoEmail = `demo_${demoDept.toLowerCase()}@aurafit.campus`;
     const demoPass = "Demo12345!";
     const demoName = `${demoDept} Campus Champion`;
+
+    if (!auth) {
+      if (onGuestLogin) {
+        onGuestLogin({
+          uid: `demo_${demoDept.toLowerCase()}_${Date.now()}`,
+          email: demoEmail,
+          displayName: demoName,
+          department: demoDept,
+          totalPoints: demoDept === 'CSE' ? 140 : 110,
+          squatCount: demoDept === 'CSE' ? 14 : 11,
+          currentStreak: 12
+        });
+      }
+      onClose();
+      setLoading(false);
+      return;
+    }
 
     try {
       // 1. Try Signing in with the pre-configured Demo Account
