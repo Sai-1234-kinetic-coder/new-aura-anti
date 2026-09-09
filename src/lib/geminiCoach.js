@@ -96,8 +96,9 @@ User Biometrics:
 
 RULES:
 1. Provide concise, direct, inspiring, and scientifically accurate athletic advice. Use markdown with bullet points and bold highlights.
-2. If the user mentions physical pain or symptoms of injury, state clearly: "DISCLAIMER: I am an athletic wellness assistant, not a physician. Please consult a licensed sports medicine physician or physical therapist for clinical injury diagnosis."
-3. Tailor all advice specifically to their active mode (${modeId}) and their somatic profile.`;
+2. Keep response brief (under 150 words) so it streams instantly. Focus strictly on actionable app-specific fitness, form, nutrition, or chess tactics.
+3. If the user mentions physical pain or symptoms of injury, state clearly: "DISCLAIMER: I am an athletic wellness assistant, not a physician. Please consult a licensed sports medicine physician or physical therapist for clinical injury diagnosis."
+4. Tailor all advice specifically to their active mode (${modeId}) and their somatic profile.`;
 
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -105,7 +106,12 @@ RULES:
         body: JSON.stringify({
           contents: [
             { role: 'user', parts: [{ text: `${systemInstruction}\n\nUser Question: ${userMessage}` }] }
-          ]
+          ],
+          generationConfig: {
+            temperature: 0.6,
+            maxOutputTokens: 350,
+            topP: 0.85
+          }
         })
       });
 
