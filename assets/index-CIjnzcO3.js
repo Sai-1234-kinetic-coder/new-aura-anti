@@ -64,10 +64,11 @@ User Biometrics:
 
 RULES:
 1. Provide concise, direct, inspiring, and scientifically accurate athletic advice. Use markdown with bullet points and bold highlights.
-2. If the user mentions physical pain or symptoms of injury, state clearly: "DISCLAIMER: I am an athletic wellness assistant, not a physician. Please consult a licensed sports medicine physician or physical therapist for clinical injury diagnosis."
-3. Tailor all advice specifically to their active mode (${e}) and their somatic profile.`,g=await fetch(B,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({contents:[{role:"user",parts:[{text:`${f}
+2. Keep response brief (under 150 words) so it streams instantly. Focus strictly on actionable app-specific fitness, form, nutrition, or chess tactics.
+3. If the user mentions physical pain or symptoms of injury, state clearly: "DISCLAIMER: I am an athletic wellness assistant, not a physician. Please consult a licensed sports medicine physician or physical therapist for clinical injury diagnosis."
+4. Tailor all advice specifically to their active mode (${e}) and their somatic profile.`,g=await fetch(B,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({contents:[{role:"user",parts:[{text:`${f}
 
-User Question: ${s}`}]}]})});if(g.ok){const E=(await g.json()).candidates?.[0]?.content?.parts?.[0]?.text||"";if(E)return await ev(E,n),E}}catch(B){console.warn("Gemini cloud API fallback:",B)}let u="";return l?u=`### ⚠️ Safety & Sports Medicine Protocol
+User Question: ${s}`}]}],generationConfig:{temperature:.6,maxOutputTokens:350,topP:.85}})});if(g.ok){const E=(await g.json()).candidates?.[0]?.content?.parts?.[0]?.text||"";if(E)return await ev(E,n),E}}catch(B){console.warn("Gemini cloud API fallback:",B)}let u="";return l?u=`### ⚠️ Safety & Sports Medicine Protocol
 
 > **Important Disclaimer:** AuraCoach is designed for athletic coaching, form correction, and nutritional guidance. I cannot diagnose clinical injuries, ligament tears, or medical pathology.
 
