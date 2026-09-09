@@ -130,23 +130,97 @@ export function computeMetabolicProfile({ weightKg, heightCm, age, gender, activ
   };
 }
 
-export const FOOD_GUIDANCE = {
-  prioritize: [
-    { name: 'Lean Chicken Breast & Turkey', category: 'Protein', reason: 'High biological value, 31g protein/100g with minimal saturated fat' },
-    { name: 'Wild Salmon & Mackerel', category: 'Fats & Protein', reason: 'Rich in anti-inflammatory EPA/DHA Omega-3s & high protein' },
-    { name: 'Organic Eggs & Egg Whites', category: 'Protein', reason: 'Gold-standard amino acid profile, choline for cognitive sharpness' },
-    { name: 'Quinoa & Steel-Cut Rolled Oats', category: 'Carbs', reason: 'Low glycemic index, rich in beta-glucan fibers and sustained glycogen' },
-    { name: 'Greek Yogurt (0% or Low Fat)', category: 'Protein', reason: 'Dense casein/whey blend with gut-friendly live active probiotics' },
-    { name: 'Lentils, Chickpeas & Edamame', category: 'Plant Protein', reason: 'Prebiotic fiber, iron, zinc, and sustained carbohydrate energy' },
-    { name: 'Avocados & Raw Almonds', category: 'Healthy Fats', reason: 'Heart-healthy monounsaturated fats & Vitamin E for joint health' },
-    { name: 'Cruciferous Greens & Berries', category: 'Micronutrients', reason: 'Anthocyanins, polyphenols, and micronutrients for cellular recovery' }
-  ],
-  minimize: [
-    { name: 'Ultra-Processed Seed Oils', category: 'Fats', reason: 'High Omega-6 linoleic acid promotes systemic inflammation' },
-    { name: 'Refined Sugars & Syrups', category: 'Carbs', reason: 'Sharp insulin spikes followed by reactive hypoglycemia and lethargy' },
-    { name: 'Deep-Fried Fast Foods', category: 'Trans Fats', reason: 'Oxidized trans fats impair endothelial blood flow and cardiovascular recovery' },
-    { name: 'Sugary Carbonated Sodas', category: 'Liquids', reason: 'Zero micronutrients, triggers visceral adiposity and dehydrates cells' },
-    { name: 'Processed Deli Meats with Nitrates', category: 'Protein', reason: 'Sodium overload, chemical preservatives linked to metabolic stress' },
-    { name: 'Refined White Pastries & Bakery', category: 'Carbs', reason: 'High glycemic index flour with stripped fiber content' }
-  ]
-};
+export function getFoodGuidanceByGoal(goal = 'fat_loss') {
+  if (goal === 'muscle_gain') {
+    return {
+      goalTitle: 'Hypertrophy & Lean Bulk Nutrition Protocol',
+      calorieContext: 'Caloric Surplus Focus (+300 to +500 kcal)',
+      prioritize: [
+        { name: 'Lean Beef & Free-Range Chicken', category: 'High-Leucine Protein', reason: 'Abundant natural creatine & leucine to stimulate the mTOR anabolic pathway' },
+        { name: 'Whole Eggs with Yolks', category: 'Anabolic Lipids & Protein', reason: 'Essential cholesterol and bioavailable choline for hormonal testosterone support' },
+        { name: 'Basmati Rice & Sweet Potatoes', category: 'Dense Glycogen Carbs', reason: 'Easily digestible carbohydrates to fuel heavy compound squat & bench sessions' },
+        { name: 'Natural Peanut / Almond Butter', category: 'Healthy Caloric Density', reason: 'High-calorie healthy fats: provides 190 kcal in 2 tbsp to easily hit your caloric surplus' },
+        { name: 'Rolled Oats & Banana Shake', category: 'Pre/Post-Workout Carb', reason: 'Fast liquid carbohydrate replenishment without gastrointestinal sluggishness' },
+        { name: 'Wild Salmon & Mackerel', category: 'Omega-3 & Joint Support', reason: 'EPA/DHA fats lubricate joint cartilage under heavy progressive overload' },
+        { name: 'Greek Yogurt & Fresh Paneer', category: 'Slow-Release Casein', reason: 'Sustained amino acid release across 6-8 hours to halt muscle catabolism during sleep' },
+        { name: 'Lentils, Chickpeas & Edamame', category: 'Complex Plant Protein', reason: 'Mineral-dense fuel rich in zinc, magnesium, and slow-burning digestive fiber' }
+      ],
+      minimize: [
+        { name: 'Excess Raw Vegetable Bulk Before Lifting', category: 'Volume Density', reason: 'Overfills the stomach with zero-calorie water fiber, suppressing your required caloric intake' },
+        { name: 'Refined Bakery Cakes & Deep-Fried Donuts', category: 'Trans Fats & Sugar', reason: 'Causes high fat accumulation with low micronutrient partitioning to muscle' },
+        { name: 'Skipping Post-Workout Nutrition Windows', category: 'Timing Protocol', reason: 'Delays protein synthesis and prolongs cortisol-driven muscle breakdown' },
+        { name: 'Hydrogenated Vegetable Margarines', category: 'Inflammatory Fats', reason: 'Impairs cellular membrane fluidity and blunts nutrient uptake into myocytes' }
+      ]
+    };
+  }
+
+  if (goal === 'endurance') {
+    return {
+      goalTitle: 'Cardiorespiratory & Stamina Fuel Protocol',
+      calorieContext: 'Glycogen Storage & Electrolyte Balance',
+      prioritize: [
+        { name: 'Beetroot Juice & Steamed Beets', category: 'Nitric Oxide & VO2 Max', reason: 'Dietary nitrates dilate blood vessels, elevating oxygen delivery to working muscles' },
+        { name: 'Bananas with Pink Himalayan Salt', category: 'Electrolytes & Rapid Energy', reason: 'Restores extracellular sodium-potassium balance, halting muscle cramps during long sets' },
+        { name: 'Quinoa & Steel-Cut Oats', category: 'Sustained Glycogen Carbs', reason: 'Complex starches that provide sustained glucose without causing energy crashes' },
+        { name: 'Coconut Water & Chia Seed Infusion', category: 'Cellular Osmosis', reason: 'Natural electrolytes and hydrophilic chia gel maintain steady intra-cellular hydration' },
+        { name: 'Tart Cherry Extract / Juice', category: 'Polyphenol Recovery', reason: 'Clinically proven to reduce delayed-onset muscle soreness (DOMS) after high-volume reps' },
+        { name: 'Steamed Lentils (Dal) & Beans', category: 'B-Vitamins & Plant Protein', reason: 'Essential B-complex vitamins for cellular ATP energy synthesis and stamina' },
+        { name: 'Wild Cod & Grilled Chicken Breast', category: 'Lean Repair Protein', reason: 'Pure essential amino acids for micro-tear repair without digestive heaviness' },
+        { name: 'Raw Honey & Dried Medjool Dates', category: 'Mid-Workout Fuel', reason: 'Dual glucose-fructose transporter uptake for rapid intra-workout energy' }
+      ],
+      minimize: [
+        { name: 'Heavy High-Fat Meals Within 2 Hours of Cardio', category: 'Gastric Timing', reason: 'Slows down gastric emptying, causing stomach cramps, nausea, and sluggishness' },
+        { name: 'Artificial High-Caffeine Energy Drinks', category: 'Central Nervous Stimulant', reason: 'Triggers tachycardia and sudden post-peak crashes during aerobic conditioning' },
+        { name: 'Spicy Acidic Foods Before Endurance Work', category: 'Gastrointestinal Stress', reason: 'Induces acid reflux and diaphragm discomfort during rhythmic breathing' }
+      ]
+    };
+  }
+
+  if (goal === 'maintenance') {
+    return {
+      goalTitle: 'Metabolic Balance & Athletic Recomposition',
+      calorieContext: 'Isocaloric Homeostasis (40/30/30 Ratio)',
+      prioritize: [
+        { name: 'Grilled Free-Range Chicken Breast', category: 'Lean Muscle Protein', reason: 'Clean high biological value protein to maintain lean mass while staying agile' },
+        { name: 'Wild Salmon & Cold-Water Sardines', category: 'Essential Fatty Acids', reason: 'Reduces systemic inflammation and optimizes resting metabolic rate' },
+        { name: 'Avocados & Extra Virgin Olive Oil', category: 'Cardioprotective Fats', reason: 'Monounsaturated oleic acid improves arterial elasticity and satiety' },
+        { name: 'Sweet Potatoes, Quinoa & Brown Rice', category: 'Complex Carbohydrates', reason: 'Steady, non-spiking glycemic fuels that sustain mental and physical productivity' },
+        { name: 'Low-Fat Greek Yogurt & Paneer', category: 'Probiotic Amino Blend', reason: 'Balances gut microbiome flora while supplying continuous amino acids' },
+        { name: 'Sprouted Moong & Black Chickpeas', category: 'Enzyme-Rich Plant Fuel', reason: 'Easy to digest, rich in trace iron, potassium, and plant bioflavonoids' },
+        { name: 'Walnuts & Roasted Pumpkin Seeds', category: 'Zinc & Magnesium', reason: 'Zinc and magnesium support deep neuromuscular relaxation and restful recovery' },
+        { name: 'Rainbow Bell Peppers, Spinach & Berries', category: 'Micronutrient Shield', reason: 'Anthocyanins and vitamin C synthesize collagen for healthy joints and tendons' }
+      ],
+      minimize: [
+        { name: 'Ultra-Processed Seed Oils', category: 'Inflammatory Lipids', reason: 'Excess linoleic acid promotes chronic low-grade inflammation' },
+        { name: 'Refined White Sugars & Commercial Syrups', category: 'Simple Carbs', reason: 'Triggers reactive hypoglycemia and visceral abdominal fat deposition' },
+        { name: 'Deep-Fried Commercial Snacks', category: 'Oxidized Trans Fats', reason: 'Damages endothelial function and slows down post-workout recovery' }
+      ]
+    };
+  }
+
+  // Default: Fat Loss
+  return {
+    goalTitle: 'Thermogenic & Satiety-Maximized Fat Loss Protocol',
+    calorieContext: 'Caloric Deficit (-300 to -500 kcal) with Lean Mass Preservation',
+    prioritize: [
+      { name: 'Organic Egg Whites & Whole Poached Eggs', category: 'High Thermic Protein', reason: 'High satiety index (13g protein/100g) with high Thermic Effect of Food (TEF)' },
+      { name: 'Lean Chicken Breast & White Cod Fish', category: 'Pure Lean Protein', reason: 'Highest protein-to-calorie ratio; prevents lean muscle catabolism during a caloric cut' },
+      { name: 'Cruciferous Greens (Broccoli, Cauliflower)', category: 'High-Volume Dietary Fiber', reason: 'Triggers stomach stretch receptors, keeping you full for hours on very few calories' },
+      { name: '0% Fat Greek Yogurt & Low-Fat Cottage Cheese', category: 'Casein & Probiotics', reason: 'Dense, slow-digesting protein that halts mid-afternoon and late-night cravings' },
+      { name: 'Konjac / Shirataki & Zucchini Noodles', category: 'Near-Zero Calorie Volume', reason: 'Glucomannan soluble fiber absorbs water in the gut, multiplying satiety without calories' },
+      { name: 'Fresh Blueberries, Strawberries & Raspberries', category: 'Low-Glycemic Antioxidants', reason: 'Satisfies sweet cravings with minimal fructose, packed with cellular polyphenols' },
+      { name: 'Boiled Potatoes (Cold-Cooled)', category: 'Resistant Starch', reason: 'Scores #1 on the international Satiety Index; resistant starch feeds healthy gut bacteria' },
+      { name: 'Unsweetened Green Tea & Apple Cider Vinegar', category: 'Thermogenic Catalysts', reason: 'EGCG catechins elevate resting fat oxidation by 3-4% when paired with workouts' }
+    ],
+    minimize: [
+      { name: 'Liquid Calories, Smoothies & Fruit Juices', category: 'Bypasses Satiety Signals', reason: 'Drinking calories bypasses chewing, leading to rapid insulin spikes and immediate rebound hunger' },
+      { name: 'Cooking Oils & Ghee Poured Unmeasured', category: 'Stealth Caloric Bombs', reason: 'Just 1 unmeasured tablespoon adds 120 calories, easily erasing your entire daily calorie deficit' },
+      { name: 'Refined White Flours (Maida) & Sweet Pastries', category: 'Fast-Absorbing Simple Carbs', reason: 'Stripped of dietary fiber, causing rapid blood glucose spikes followed by fatigue' },
+      { name: 'Deep-Fried Samosas, Fries & Fast Foods', category: 'High-Calorie Trans Fats', reason: 'Extremely calorie-dense: a single serving can exceed 600 calories with zero micronutrients' },
+      { name: 'Sugary Carbonated Sodas & Energy Drinks', category: 'High-Fructose Liquid', reason: 'Triggers visceral liver fat storage and impairs leptin (fullness) hormone signaling' }
+    ]
+  };
+}
+
+// Backwards-compatible default
+export const FOOD_GUIDANCE = getFoodGuidanceByGoal('fat_loss');

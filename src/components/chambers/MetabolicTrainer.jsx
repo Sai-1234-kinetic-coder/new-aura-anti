@@ -20,7 +20,7 @@ import {
   computeMetabolicProfile, 
   ACTIVITY_LEVELS, 
   FITNESS_GOALS, 
-  FOOD_GUIDANCE 
+  getFoodGuidanceByGoal 
 } from '../../lib/metabolicMath';
 
 export default function MetabolicTrainer({ user, userProfile, onLaunchCamera }) {
@@ -53,11 +53,14 @@ export default function MetabolicTrainer({ user, userProfile, onLaunchCamera }) 
   const [activeDietTab, setActiveDietTab] = useState('prioritize');
   const [routineLevel, setRoutineLevel] = useState('intermediate');
 
+  // Dynamic food guidance based on user goal
+  const currentFoodGuidance = getFoodGuidanceByGoal(goal);
+
   // Compute live metabolic profile
   const metrics = computeMetabolicProfile({
-    weightKg: Number(weightKg),
-    heightCm: Number(heightCm),
-    age: Number(age),
+    weightKg: Number(weightKg) || 70,
+    heightCm: Number(heightCm) || 170,
+    age: Number(age) || 22,
     gender,
     activityLevel,
     goal
@@ -65,7 +68,7 @@ export default function MetabolicTrainer({ user, userProfile, onLaunchCamera }) 
 
   // Save changes to localStorage
   useEffect(() => {
-    const profile = { weightKg, heightCm, age, gender, activityLevel, goal, updatedAt: new Date().toISOString() };
+    const profile = { weightKg, heightCm, age: Number(age) || 22, gender, activityLevel, goal, updatedAt: new Date().toISOString() };
     localStorage.setItem('aurafit_metabolic_profile', JSON.stringify(profile));
   }, [weightKg, heightCm, age, gender, activityLevel, goal]);
 
@@ -177,15 +180,25 @@ export default function MetabolicTrainer({ user, userProfile, onLaunchCamera }) 
 
             <div>
               <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                Age: <strong style={{ color: '#10b981' }}>{age} yrs</strong>
+                Age: <strong style={{ color: '#10b981' }}>{age ? `${age} yrs` : '—'}</strong>
               </label>
               <input 
                 type="number" 
                 min="12" 
                 max="100" 
                 value={age} 
-                onChange={(e) => setAge(Math.max(12, Math.min(100, Number(e.target.value))))}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setAge(val === '' ? '' : Math.min(120, parseInt(val, 10) || ''));
+                }}
+                onBlur={() => {
+                  const num = Number(age);
+                  if (!num || num < 12) setAge(12);
+                  else if (num > 100) setAge(100);
+                  else setAge(Math.round(num));
+                }}
                 className="form-input"
+                placeholder="Age (12-100)"
               />
             </div>
           </div>
@@ -469,11 +482,16 @@ export default function MetabolicTrainer({ user, userProfile, onLaunchCamera }) 
       <div className="glass-card" style={{ padding: '24px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap', gap: '12px' }}>
           <div>
-            <h3 style={{ fontSize: '18px', fontWeight: '800', letterSpacing: '-0.02em', margin: 0 }}>
-              Nutritional Optimization Protocols
-            </h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: '800', letterSpacing: '-0.02em', margin: 0 }}>
+                Nutritional Optimization Protocols
+              </h3>
+              <span className="badge" style={{ fontSize: '11px', color: '#10b981', background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                {currentFoodGuidance.calorieContext}
+              </span>
+            </div>
             <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '4px 0 0' }}>
-              Scientifically curated food groups to support your somatic profile and training performance.
+              {currentFoodGuidance.goalTitle} • Scientifically curated for your somatic profile & <strong style={{ color: '#10b981' }}>{FITNESS_GOALS.find(g => g.id === goal)?.label}</strong>.
             </p>
           </div>
 
@@ -484,7 +502,7 @@ export default function MetabolicTrainer({ user, userProfile, onLaunchCamera }) 
               style={{ padding: '7px 14px', fontSize: '12px' }}
             >
               <CheckCircle2 size={14} />
-              Foods to Prioritize
+              Foods to Prioritize ({currentFoodGuidance.prioritize?.length || 0})
             </button>
             <button
               onClick={() => setActiveDietTab('minimize')}
@@ -492,7 +510,7 @@ export default function MetabolicTrainer({ user, userProfile, onLaunchCamera }) 
               style={{ padding: '7px 14px', fontSize: '12px' }}
             >
               <XCircle size={14} />
-              Foods to Minimize
+              Foods to Minimize ({currentFoodGuidance.minimize?.length || 0})
             </button>
           </div>
         </div>
@@ -502,7 +520,7 @@ export default function MetabolicTrainer({ user, userProfile, onLaunchCamera }) 
           gridTemplateColumns: 'repeat(auto-fill, minmax(270px, 1fr))',
           gap: '14px'
         }}>
-          {FOOD_GUIDANCE[activeDietTab].map((item, idx) => (
+          {(currentFoodGuidance[activeDietTab] || []).map((item, idx) => (
             <div
               key={idx}
               style={{

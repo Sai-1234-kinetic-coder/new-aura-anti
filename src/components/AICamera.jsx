@@ -117,41 +117,77 @@ export default function AICamera({
     if (holdTimerRef.current) clearInterval(holdTimerRef.current);
   };
 
-  // Initialize Webcam Stream
-  const initWebcam = useCallback(() => {
+  // Initialize Webcam Stream with progressive constraint fallback
+  const initWebcam = useCallback(async () => {
     setCameraError('');
     if (!navigator?.mediaDevices?.getUserMedia) {
-      setCameraError("Webcam not detected. You can use 'Execute Form Rep' to test all AI posture scoring features.");
+      setCameraError("Webcam not supported in this browser. You can use 'Execute Form Rep' to test all AI posture scoring features.");
       setCameraActive(false);
       return;
     }
 
-    navigator.mediaDevices.getUserMedia({
-      video: {
-        width: { ideal: 640 },
-        height: { ideal: 480 },
-        facingMode: 'user'
-      },
-      audio: false
-    })
-      .then((stream) => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          setCameraActive(true);
+    // Stop any previously attached stream tracks safely
+    if (videoRef.current && videoRef.current.srcObject) {
+      try {
+        videoRef.current.srcObject.getTracks().forEach(track => track.stop());
+      } catch (e) {}
+      videoRef.current.srcObject = null;
+    }
 
-          videoRef.current.onloadedmetadata = () => {
-            if (canvasRef.current && videoRef.current) {
-              canvasRef.current.width = videoRef.current.videoWidth || 640;
-              canvasRef.current.height = videoRef.current.videoHeight || 480;
-            }
-          };
+    const constraintTiers = [
+      // Tier 1: Ideal user-facing camera with 640x480 resolution
+      { video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' }, audio: false },
+      // Tier 2: Basic user-facing camera without resolution constraints
+      { video: { facingMode: 'user' }, audio: false },
+      // Tier 3: Any available video camera (vital for USB webcams & Windows desktop cams)
+      { video: true, audio: false }
+    ];
+
+    let stream = null;
+    let lastError = null;
+
+    for (const constraints of constraintTiers) {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+        if (stream) break;
+      } catch (err) {
+        lastError = err;
+        // If user explicitly denied permission, break immediately
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+          break;
         }
-      })
-      .catch((err) => {
-        console.warn("Webcam access restricted:", err);
-        setCameraError("Camera permission in use or disabled. You can test full pose analytics using 'Execute Form Rep' below.");
-        setCameraActive(false);
-      });
+      }
+    }
+
+    if (stream && videoRef.current) {
+      videoRef.current.srcObject = stream;
+      videoRef.current.onloadedmetadata = async () => {
+        if (canvasRef.current && videoRef.current) {
+          canvasRef.current.width = videoRef.current.videoWidth || 640;
+          canvasRef.current.height = videoRef.current.videoHeight || 480;
+        }
+        try {
+          await videoRef.current.play();
+        } catch (playErr) {
+          console.warn("Autoplay notice:", playErr);
+        }
+      };
+      setCameraActive(true);
+      setCameraError('');
+    } else {
+      let message = "Camera access unavailable.";
+      if (lastError?.name === 'NotAllowedError' || lastError?.name === 'PermissionDeniedError') {
+        message = "Camera permission was blocked. Please click the 🔒 icon in the browser address bar, set Camera to 'Allow', and click 'Retry Camera'.";
+      } else if (lastError?.name === 'NotFoundError' || lastError?.name === 'DevicesNotFoundError') {
+        message = "No webcam hardware detected. You can use 'Execute Form Rep' to test all posture scoring features.";
+      } else if (lastError?.name === 'NotReadableError' || lastError?.name === 'TrackStartError') {
+        message = "Webcam is in use by another application (Zoom/Teams/browser tab). Please close other apps and click Retry.";
+      } else if (lastError?.message) {
+        message = `Camera notice: ${lastError.message}`;
+      }
+      setCameraError(message);
+      setCameraActive(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -712,33 +748,51 @@ export default function AICamera({
 
           {/* Camera Disabled / Permission Warning Banner */}
           {!cameraActive && (
-            <div style={{ textAlign: 'center', padding: '24px', maxWidth: '400px' }}>
+            <div style={{ 
+              textAlign: 'center', 
+              padding: '28px 24px', 
+              maxWidth: '440px',
+              background: 'rgba(11, 15, 25, 0.85)',
+              backdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '16px',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
+            }}>
               <div style={{
-                width: '48px',
-                height: '48px',
-                borderRadius: '12px',
-                background: 'rgba(56, 189, 248, 0.1)',
+                width: '52px',
+                height: '52px',
+                borderRadius: '14px',
+                background: cameraError ? 'rgba(244, 63, 94, 0.15)' : 'rgba(56, 189, 248, 0.15)',
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#38bdf8',
-                marginBottom: '12px'
+                color: cameraError ? '#fb7185' : '#38bdf8',
+                marginBottom: '14px'
               }}>
-                <Camera size={24} />
+                <Camera size={26} />
               </div>
-              <h4 style={{ fontSize: '15px', fontWeight: '700', marginBottom: '6px' }}>
-                Camera Privacy Mode Ready
+              <h4 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '8px', color: '#fff' }}>
+                {cameraError ? 'Webcam Initialization Notice' : 'Camera Ready to Connect'}
               </h4>
-              <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.5', margin: '0 0 16px' }}>
-                {cameraError || "Position body in frame or use the instant AI Rep trigger to test tracking."}
+              <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.6', margin: '0 0 18px' }}>
+                {cameraError || "AuraFit runs 100% on-device MediaPipe vision. Your video stream is never recorded or transmitted to any server."}
               </p>
-              <button
-                onClick={initWebcam}
-                className="btn btn-secondary"
-                style={{ padding: '8px 14px', fontSize: '12px' }}
-              >
-                <RefreshCw size={13} /> Re-detect Camera
-              </button>
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <button
+                  onClick={initWebcam}
+                  className="btn btn-primary"
+                  style={{ padding: '9px 18px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}
+                >
+                  <RefreshCw size={15} /> Retry Camera Access
+                </button>
+                <button
+                  onClick={() => handleSimulateRep()}
+                  className="btn btn-secondary"
+                  style={{ padding: '9px 16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <Zap size={14} color="#38bdf8" /> Test Rep (No Cam)
+                </button>
+              </div>
             </div>
           )}
 

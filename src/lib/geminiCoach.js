@@ -95,27 +95,34 @@ RULES:
 3. If the user mentions physical pain or symptoms of injury, state clearly: "DISCLAIMER: I am an athletic wellness assistant, not a physician. Please consult a licensed sports medicine physician or physical therapist for clinical injury diagnosis."
 4. Tailor all advice specifically to their active mode (${modeId}) and their somatic profile.`;
 
-  // 1. Attempt secure serverless proxy (/api/gemini)
-  // Keeps master GEMINI_API_KEY 100% on the server without bundling into public JS
-  try {
-    const proxyHeaders = { 'Content-Type': 'application/json' };
-    if (userEnteredKey) proxyHeaders['x-gemini-api-key'] = userEnteredKey;
+  // 1. Attempt secure serverless proxy (/api/gemini) on Vercel/Netlify/server environments
+  // Skips on static GitHub Pages to prevent 404 delay
+  const isStaticHost = typeof window !== 'undefined' && (
+    window.location.hostname.includes('github.io') ||
+    window.location.protocol === 'file:'
+  );
 
-    const proxyRes = await fetch('/api/gemini', {
-      method: 'POST',
-      headers: proxyHeaders,
-      body: JSON.stringify({ systemInstruction, userMessage })
-    });
+  if (!isStaticHost) {
+    try {
+      const proxyHeaders = { 'Content-Type': 'application/json' };
+      if (userEnteredKey) proxyHeaders['x-gemini-api-key'] = userEnteredKey;
 
-    if (proxyRes.ok) {
-      const data = await proxyRes.json();
-      if (data.text) {
-        await streamText(data.text, onChunk);
-        return data.text;
+      const proxyRes = await fetch('/api/gemini', {
+        method: 'POST',
+        headers: proxyHeaders,
+        body: JSON.stringify({ systemInstruction, userMessage })
+      });
+
+      if (proxyRes.ok) {
+        const data = await proxyRes.json();
+        if (data.text) {
+          await streamText(data.text, onChunk);
+          return data.text;
+        }
       }
+    } catch (proxyErr) {
+      // Handled gracefully: Fall back if proxy is not reachable
     }
-  } catch (proxyErr) {
-    // Handled gracefully: Fall back if running on static host without serverless functions
   }
 
   // 2. Direct client call ONLY IF user explicitly entered a personal BYOK key in settings
