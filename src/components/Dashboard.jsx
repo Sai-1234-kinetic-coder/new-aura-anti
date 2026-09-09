@@ -15,9 +15,16 @@ import {
   Sparkles,
   Zap,
   TrendingUp,
-  RefreshCw
+  RefreshCw,
+  Dumbbell,
+  Brain,
+  Bot,
+  HeartPulse,
+  Clock,
+  ArrowRight,
+  ShieldCheck,
+  Award
 } from 'lucide-react';
-
 
 export default function Dashboard({ 
   user, 
@@ -27,25 +34,37 @@ export default function Dashboard({
   onLaunchArena, 
   onOpenLeaderboard, 
   onOpenBuddies,
-  onLocalWorkoutLogged 
+  onLocalWorkoutLogged,
+  setActiveTab
 }) {
   const toast = useToast();
 
-  // Interactive Water Logger (Persisted in localStorage + Firestore daily_logs)
+  // Load live metabolic profile from Chamber 1 if set
+  const [metabolicSnapshot, setMetabolicSnapshot] = useState(null);
+  useEffect(() => {
+    const saved = localStorage.getItem('aurafit_metabolic_profile');
+    if (saved) {
+      try {
+        setMetabolicSnapshot(JSON.parse(saved));
+      } catch (e) {}
+    }
+  }, []);
+
+  // Hydration state
   const [waterAmount, setWaterAmount] = useState(() => {
     const saved = localStorage.getItem('aurafit_water');
-    return saved ? Number(saved) : 2.2;
+    return saved ? Number(saved) : 2.25;
   });
   const waterTarget = 3.5;
 
-  // Interactive Daily Steps Simulator (Persisted in localStorage + Firestore daily_logs)
+  // Steps state
   const [steps, setSteps] = useState(() => {
     const saved = localStorage.getItem('aurafit_steps');
     return saved ? Number(saved) : 8420;
   });
   const stepTarget = 10000;
 
-  // Sync today's daily log from Firestore on mount (so values survive page reload)
+  // Sync today's daily log from Firestore
   useEffect(() => {
     if (!user?.uid) return;
     const unsub = subscribeToUserDailyLog(user.uid, (data) => {
@@ -61,8 +80,7 @@ export default function Dashboard({
     return () => unsub();
   }, [user?.uid]);
 
-
-  // Manual Activity Logger State
+  // Activity Logger
   const [exerciseName, setExerciseName] = useState('');
   const [durationStr, setDurationStr] = useState('');
   const [isLogging, setIsLogging] = useState(false);
@@ -71,7 +89,6 @@ export default function Dashboard({
     const nextAmount = Math.min(Number((waterAmount + 0.25).toFixed(2)), waterTarget);
     setWaterAmount(nextAmount);
     localStorage.setItem('aurafit_water', nextAmount.toString());
-    // Persist to Firestore daily_logs (fire-and-forget; localStorage is the sync fallback)
     if (user?.uid) {
       logDailyMetrics(user.uid, { waterLiters: nextAmount }).catch(() => {});
     }
@@ -81,7 +98,6 @@ export default function Dashboard({
     const nextSteps = Math.min(steps + 500, 15000);
     setSteps(nextSteps);
     localStorage.setItem('aurafit_steps', nextSteps.toString());
-    // Persist to Firestore daily_logs
     if (user?.uid) {
       logDailyMetrics(user.uid, { steps: nextSteps }).catch(() => {});
     }
@@ -107,7 +123,6 @@ export default function Dashboard({
       if (onRefreshWorkouts) onRefreshWorkouts();
       toast.success("✅ Activity successfully logged! +25 XP awarded.");
     } catch (err) {
-      console.warn("Local workout log fallback:", err);
       if (onLocalWorkoutLogged) onLocalWorkoutLogged(newWorkoutObj);
       setExerciseName('');
       setDurationStr('');
@@ -117,244 +132,355 @@ export default function Dashboard({
     }
   };
 
-  const stepPercent = Math.min(Math.round((steps / stepTarget) * 100), 100);
+  // Gamification Level calculations
+  const totalXp = userProfile?.totalPoints || 140;
+  const currentLevel = Math.floor(Math.sqrt(totalXp / 50)) + 1;
+  const xpCurrentLevelFloor = (currentLevel - 1) * (currentLevel - 1) * 50;
+  const xpNextLevelFloor = currentLevel * currentLevel * 50;
+  const levelProgressPct = Math.min(100, Math.round(((totalXp - xpCurrentLevelFloor) / (xpNextLevelFloor - xpCurrentLevelFloor)) * 100));
+
+  const squatReps = userProfile?.squatCount || 14;
+  const streakDays = userProfile?.currentStreak || 7;
 
   return (
     <div className="animate-fade-in-up" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       
-      {/* Welcome & Campus Banner */}
-      <div className="glass-card glow-emerald" style={{
-        padding: '28px',
-        borderRadius: 'var(--radius-lg)',
-        background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(6, 182, 212, 0.08))',
-        border: '1px solid rgba(16, 185, 129, 0.3)'
+      {/* 1. Live Command Header & Aura Level Hero */}
+      <div className="glass-card" style={{
+        padding: '24px 28px',
+        borderLeft: '4px solid #10b981',
+        background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.95), rgba(16, 185, 129, 0.08))',
+        position: 'relative',
+        overflow: 'hidden'
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
           <div>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-              <span className="badge badge-dept">Department of {userProfile?.department || 'CSE'}</span>
-              <span className="badge badge-streak">🔥 14-Day Streak</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+              <h2 style={{ fontSize: '24px', fontWeight: '900', letterSpacing: '-0.02em', margin: 0 }}>
+                Welcome back, {userProfile?.displayName || 'Champion Athlete'}
+              </h2>
+              <span className="badge badge-dept" style={{ fontSize: '10px' }}>
+                {userProfile?.department || 'ATHLETE'}
+              </span>
             </div>
-            <h2 style={{ fontSize: '26px', color: '#fff', margin: '0 0 6px 0' }}>
-              Welcome back, {userProfile?.displayName || user?.email?.split('@')[0] || 'Campus Athlete'}! 👋
-            </h2>
-            <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '14px' }}>
-              Your department holds <strong>#1 position</strong> on campus today. Keep your streak alive with an AI Posture session!
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0 }}>
+              Your cognitive and physical systems are firing. Active streak: <strong style={{ color: '#fbbf24' }}>{streakDays} days 🔥 (1.5x Multiplier)</strong>
             </p>
           </div>
 
-          <button 
+          {/* Aura Level Pill Card */}
+          <div style={{
+            background: '#0b0f19',
+            border: '1px solid rgba(245, 158, 11, 0.3)',
+            borderRadius: 'var(--radius-md)',
+            padding: '12px 18px',
+            minWidth: '220px'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <span style={{ fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Sparkles size={13} /> Aura Level {currentLevel}
+              </span>
+              <span style={{ fontSize: '12px', fontWeight: '800', color: '#f8fafc' }}>
+                {totalXp} XP
+              </span>
+            </div>
+
+            {/* Level Bar */}
+            <div style={{ height: '6px', background: '#1e293b', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
+              <div style={{
+                height: '100%',
+                width: `${levelProgressPct}%`,
+                background: 'linear-gradient(90deg, #10b981, #06b6d4)',
+                transition: 'width 0.4s ease'
+              }} />
+            </div>
+            <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px', textAlign: 'right' }}>
+              {xpNextLevelFloor - totalXp} XP to Level {currentLevel + 1}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 2. Metabolic & Biometric Quick-Tile (Interlinked with Chamber 1) */}
+      <div className="glass-card" style={{ padding: '20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Dumbbell size={18} color="#10b981" />
+            <h3 style={{ fontSize: '15px', fontWeight: '800', margin: 0 }}>
+              Active Metabolic Profile (Chamber 1)
+            </h3>
+          </div>
+          {setActiveTab && (
+            <button
+              onClick={() => setActiveTab('trainer')}
+              className="btn btn-secondary"
+              style={{ padding: '6px 12px', fontSize: '11px', borderRadius: 'var(--radius-full)' }}
+            >
+              Recalibrate In Trainer <ArrowRight size={13} />
+            </button>
+          )}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px' }}>
+          <div style={{ background: '#0b0f19', padding: '12px', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid #10b981' }}>
+            <span style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Current Weight</span>
+            <div style={{ fontSize: '16px', fontWeight: '800', color: '#10b981' }}>
+              {metabolicSnapshot?.weightKg || 72} kg
+            </div>
+          </div>
+
+          <div style={{ background: '#0b0f19', padding: '12px', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid #06b6d4' }}>
+            <span style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Height</span>
+            <div style={{ fontSize: '16px', fontWeight: '800', color: '#06b6d4' }}>
+              {metabolicSnapshot?.heightCm || 175} cm
+            </div>
+          </div>
+
+          <div style={{ background: '#0b0f19', padding: '12px', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid #f59e0b' }}>
+            <span style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Daily Calorie Target</span>
+            <div style={{ fontSize: '16px', fontWeight: '800', color: '#f59e0b' }}>
+              {metabolicSnapshot?.goal === 'hypertrophy' ? '~2,750 kcal' : '~2,150 kcal'}
+            </div>
+          </div>
+
+          <div style={{ background: '#0b0f19', padding: '12px', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid #a855f7' }}>
+            <span style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Primary Goal</span>
+            <div style={{ fontSize: '14px', fontWeight: '800', color: '#a855f7' }}>
+              {metabolicSnapshot?.goal ? metabolicSnapshot.goal.toUpperCase().replace('_', ' ') : 'FAT LOSS'}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. Daily Activity Triple Ring & Key Performance Metrics */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+        
+        {/* Metric 1: AI Vision Reps */}
+        <div className="glass-card" style={{ padding: '20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600' }}>AI Form Reps</span>
+            <Camera size={18} color="#10b981" />
+          </div>
+          <div style={{ fontSize: '28px', fontWeight: '900', color: '#10b981' }}>
+            {squatReps} <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>reps</span>
+          </div>
+          <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+            Pose accuracy score: <strong style={{ color: '#10b981' }}>94% form validity</strong>
+          </p>
+          <button
             onClick={onLaunchArena}
-            className="btn btn-primary glow-emerald"
-            style={{ padding: '12px 24px', fontSize: '15px' }}
+            className="btn btn-primary"
+            style={{ marginTop: '12px', padding: '7px 12px', fontSize: '11px', width: '100%' }}
+          >
+            <Camera size={13} /> Launch AI Camera
+          </button>
+        </div>
+
+        {/* Metric 2: Smart Hydration */}
+        <div className="glass-card" style={{ padding: '20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600' }}>Hydration Log</span>
+            <Droplet size={18} color="#06b6d4" />
+          </div>
+          <div style={{ fontSize: '28px', fontWeight: '900', color: '#06b6d4' }}>
+            {waterAmount} <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>/ {waterTarget} L</span>
+          </div>
+          <div style={{ height: '6px', background: '#1e293b', borderRadius: 'var(--radius-full)', margin: '8px 0', overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${Math.min(100, Math.round((waterAmount / waterTarget) * 100))}%`, background: '#06b6d4' }} />
+          </div>
+          <button
+            onClick={handleAddWater}
+            className="btn btn-cyan"
+            style={{ marginTop: '8px', padding: '7px 12px', fontSize: '11px', width: '100%' }}
+          >
+            <Plus size={13} /> Log Glass (+250ml)
+          </button>
+        </div>
+
+        {/* Metric 3: Campus Footsteps */}
+        <div className="glass-card" style={{ padding: '20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600' }}>Active Footsteps</span>
+            <Footprints size={18} color="#f59e0b" />
+          </div>
+          <div style={{ fontSize: '28px', fontWeight: '900', color: '#f59e0b' }}>
+            {steps.toLocaleString()} <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>/ {stepTarget.toLocaleString()}</span>
+          </div>
+          <div style={{ height: '6px', background: '#1e293b', borderRadius: 'var(--radius-full)', margin: '8px 0', overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${Math.min(100, Math.round((steps / stepTarget) * 100))}%`, background: '#f59e0b' }} />
+          </div>
+          <button
+            onClick={handleAddSteps}
+            className="btn btn-secondary"
+            style={{ marginTop: '8px', padding: '7px 12px', fontSize: '11px', width: '100%' }}
+          >
+            <Plus size={13} /> Simulate Walk (+500 steps)
+          </button>
+        </div>
+
+      </div>
+
+      {/* 4. Quick-Action Chamber Launchpad (Jump into any Chamber in 1 click) */}
+      <div className="glass-card" style={{ padding: '24px' }}>
+        <h3 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '14px', letterSpacing: '-0.02em' }}>
+          Quick Chamber Launchpad
+        </h3>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+          <button
+            onClick={() => setActiveTab && setActiveTab('camera')}
+            className="btn btn-primary"
+            style={{ padding: '12px', justifyContent: 'flex-start', borderRadius: 'var(--radius-md)' }}
           >
             <Camera size={18} />
-            Launch AI Pose Arena ⚡
+            <div style={{ textAlign: 'left' }}>
+              <div style={{ fontSize: '13px', fontWeight: '700' }}>AI Camera Arena</div>
+              <div style={{ fontSize: '10px', opacity: 0.8 }}>Pose & Rep Correction</div>
+            </div>
+          </button>
+
+          <button
+            onClick={() => setActiveTab && setActiveTab('coach')}
+            className="btn btn-secondary"
+            style={{ padding: '12px', justifyContent: 'flex-start', borderRadius: 'var(--radius-md)', borderColor: 'rgba(168, 85, 247, 0.4)' }}
+          >
+            <Bot size={18} color="#a855f7" />
+            <div style={{ textAlign: 'left' }}>
+              <div style={{ fontSize: '13px', fontWeight: '700' }}>AuraCoach AI</div>
+              <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Conversational Assistant</div>
+            </div>
+          </button>
+
+          <button
+            onClick={() => setActiveTab && setActiveTab('mind')}
+            className="btn btn-secondary"
+            style={{ padding: '12px', justifyContent: 'flex-start', borderRadius: 'var(--radius-md)', borderColor: 'rgba(236, 72, 153, 0.4)' }}
+          >
+            <HeartPulse size={18} color="#ec4899" />
+            <div style={{ textAlign: 'left' }}>
+              <div style={{ fontSize: '13px', fontWeight: '700' }}>Zen & Mudras</div>
+              <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Mindfulness & Breathwork</div>
+            </div>
+          </button>
+
+          <button
+            onClick={() => setActiveTab && setActiveTab('chess')}
+            className="btn btn-secondary"
+            style={{ padding: '12px', justifyContent: 'flex-start', borderRadius: 'var(--radius-md)', borderColor: 'rgba(56, 189, 248, 0.4)' }}
+          >
+            <Brain size={18} color="#38bdf8" />
+            <div style={{ textAlign: 'left' }}>
+              <div style={{ fontSize: '13px', fontWeight: '700' }}>Cognitive Chess</div>
+              <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Play AI & Puzzles</div>
+            </div>
+          </button>
+
+          <button
+            onClick={() => setActiveTab && setActiveTab('tools')}
+            className="btn btn-secondary"
+            style={{ padding: '12px', justifyContent: 'flex-start', borderRadius: 'var(--radius-md)', borderColor: 'rgba(245, 158, 11, 0.4)' }}
+          >
+            <Clock size={18} color="#f59e0b" />
+            <div style={{ textAlign: 'left' }}>
+              <div style={{ fontSize: '13px', fontWeight: '700' }}>Smart Tools</div>
+              <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>HIIT & Chime Alarms</div>
+            </div>
           </button>
         </div>
       </div>
 
-      {/* Dynamic Health & Activity KPI Cards */}
-      <div className="grid-stats">
-        
-        {/* Steps Card */}
-        <div className="glass-card" style={{ padding: '20px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-            <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Daily Steps</span>
-            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(56, 189, 248, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Footprints size={18} color="#38bdf8" />
-            </div>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ fontSize: '26px', fontWeight: '900', color: '#fff', margin: 0 }}>
-              {steps.toLocaleString()} <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>/ {stepTarget.toLocaleString()}</span>
-            </h3>
-            <button 
-              onClick={handleAddSteps}
-              className="btn btn-secondary"
-              style={{ padding: '4px 10px', fontSize: '11px' }}
-              title="Add 500 Steps"
-            >
-              +500 🚶
-            </button>
-          </div>
-          <div style={{ width: '100%', height: '6px', background: '#1e293b', borderRadius: 'var(--radius-full)', overflow: 'hidden', margin: '12px 0 6px 0' }}>
-            <div style={{ width: `${stepPercent}%`, height: '100%', background: '#38bdf8', borderRadius: 'var(--radius-full)', transition: 'width 0.4s ease' }} />
-          </div>
-          <span style={{ fontSize: '12px', color: '#34d399', fontWeight: '600' }}>{stepPercent}% of daily campus goal</span>
-        </div>
-
-        {/* Interactive Water Logger Card */}
-        <div className="glass-card" style={{ padding: '20px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-            <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Water Hydration</span>
-            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(6, 182, 212, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Droplet size={18} color="#06b6d4" />
-            </div>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <h3 style={{ fontSize: '26px', fontWeight: '900', color: '#fff', margin: 0 }}>{waterAmount}L <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>/ {waterTarget}L</span></h3>
-              <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'var(--text-secondary)' }}>{(waterTarget - waterAmount).toFixed(1)}L remaining today</p>
-            </div>
-            <button 
-              onClick={handleAddWater}
-              className="btn btn-cyan"
-              style={{ padding: '6px 12px', fontSize: '12px' }}
-              title="Add 250ml"
-            >
-              <Plus size={14} /> +250ml 💧
-            </button>
-          </div>
-        </div>
-
-        {/* Sleep Tracker Card */}
-        <div className="glass-card" style={{ padding: '20px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-            <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Sleep Quality</span>
-            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(168, 85, 247, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Moon size={18} color="#a855f7" />
-            </div>
-          </div>
-          <h3 style={{ fontSize: '26px', fontWeight: '900', color: '#fff', margin: '0 0 4px 0' }}>7.5h <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>/ 8.0h</span></h3>
-          <div style={{ width: '100%', height: '6px', background: '#1e293b', borderRadius: 'var(--radius-full)', overflow: 'hidden', margin: '10px 0 6px 0' }}>
-            <div style={{ width: '92%', height: '100%', background: '#a855f7', borderRadius: 'var(--radius-full)' }} />
-          </div>
-          <span style={{ fontSize: '12px', color: '#c084fc', fontWeight: '600' }}>92% sleep efficiency score</span>
-        </div>
-
-      </div>
-
-      {/* Quick Action Navigation Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
-        <div 
-          className="glass-card" 
-          style={{ padding: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '16px' }}
-          onClick={onOpenLeaderboard}
-        >
-          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(245, 158, 11, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Trophy size={24} color="#fbbf24" />
-          </div>
-          <div>
-            <h4 style={{ margin: 0, fontSize: '16px', color: '#fff' }}>Department Wars Leaderboard</h4>
-            <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--text-secondary)' }}>View real-time branch rankings & MVPs</p>
-          </div>
-        </div>
-
-        <div 
-          className="glass-card" 
-          style={{ padding: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '16px' }}
-          onClick={onOpenBuddies}
-        >
-          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(56, 189, 248, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Users size={24} color="#38bdf8" />
-          </div>
-          <div>
-            <h4 style={{ margin: 0, fontSize: '16px', color: '#fff' }}>Campus Buddy Finder</h4>
-            <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--text-secondary)' }}>Find partners for morning runs & gym</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Manual Activity Logger & Recent Stream Split */}
+      {/* 5. Activity Logger & Recent Activity Stream */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
         
-        {/* Logger Card */}
+        {/* Manual Workout Logger */}
         <div className="glass-card" style={{ padding: '24px' }}>
-          <h3 style={{ fontSize: '18px', color: '#fff', margin: '0 0 14px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Plus size={18} color="#10b981" />
-            Log Manual Campus Activity
+          <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Zap size={18} color="#10b981" />
+            Log Custom Workout Activity
           </h3>
-          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '18px' }}>
-            Ran track, played sports, or completed gym sets? Log them to score department XP!
-          </p>
 
           <form onSubmit={handleLogManualActivity} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                Activity Name:
+              <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
+                Activity / Exercise Name
               </label>
               <input 
                 type="text"
-                className="form-input"
-                placeholder="e.g. 5km Campus Track Run"
+                placeholder="e.g., 5km Campus Track Run, Swimming, Calisthenics"
                 value={exerciseName}
                 onChange={e => setExerciseName(e.target.value)}
+                className="form-input"
                 required
               />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                Duration / Reps:
+              <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
+                Duration / Reps
               </label>
               <input 
                 type="text"
-                className="form-input"
-                placeholder="e.g. 25 mins or 3 sets"
+                placeholder="e.g., 25 mins or 4 sets x 15 reps"
                 value={durationStr}
                 onChange={e => setDurationStr(e.target.value)}
+                className="form-input"
                 required
               />
             </div>
 
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               disabled={isLogging}
               className="btn btn-primary"
-              style={{ marginTop: '8px', padding: '11px' }}
+              style={{ marginTop: '6px', padding: '10px', fontSize: '13px' }}
             >
-              {isLogging ? "Saving to Cloud..." : "Save Activity (+25 XP) 🚀"}
+              {isLogging ? "Logging XP..." : "Log Activity (+25 Aura XP)"}
             </button>
           </form>
         </div>
 
-        {/* Recent Activity History */}
+        {/* Recent Workouts Feed */}
         <div className="glass-card" style={{ padding: '24px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <h3 style={{ fontSize: '18px', color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Calendar size={18} color="#38bdf8" />
-              Recent Activity Stream
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: '700', margin: 0 }}>
+              Recent Training Logs ({workouts.length})
             </h3>
-            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{workouts.length} recorded</span>
+            {onRefreshWorkouts && (
+              <button onClick={onRefreshWorkouts} className="btn btn-secondary" style={{ padding: '4px 8px', fontSize: '11px' }}>
+                <RefreshCw size={12} />
+              </button>
+            )}
           </div>
 
-          {workouts.length === 0 ? (
-            <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-              <p style={{ margin: 0, fontSize: '14px' }}>No workouts logged yet today.</p>
-              <p style={{ margin: '6px 0 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>Complete reps in the AI Arena to see them here!</p>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {workouts.slice(0, 5).map((w, idx) => (
-                <div 
-                  key={w.id || idx}
-                  style={{
-                    background: '#0b0f19',
-                    padding: '12px 14px',
-                    borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--border-color)',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: 'rgba(16, 185, 129, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <CheckCircle2 size={16} color="#10b981" />
-                    </div>
-                    <div>
-                      <h5 style={{ margin: 0, fontSize: '14px', color: '#fff' }}>{w.exercise}</h5>
-                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{w.duration}</span>
-                    </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '220px', overflowY: 'auto' }}>
+            {workouts.map((w, idx) => (
+              <div
+                key={w.id || idx}
+                style={{
+                  background: '#0b0f19',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '10px 14px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>
+                    {w.exercise}
                   </div>
-                  <span className="badge badge-xp" style={{ fontSize: '11px' }}>
-                    +{w.pointsEarned || 10} XP
-                  </span>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                    Duration: {w.duration}
+                  </div>
                 </div>
-              ))}
-            </div>
-          )}
+
+                <span className="badge badge-xp" style={{ fontSize: '11px' }}>
+                  +{w.pointsEarned || 25} XP
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
 
       </div>

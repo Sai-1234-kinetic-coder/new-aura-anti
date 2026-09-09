@@ -5,12 +5,13 @@
   "description": "AuraFit - AI-Powered Gamified Campus Fitness & Posture Corrector for SIH 2026",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host",
     "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
     "canvas-confetti": "^1.9.4",
+    "chess.js": "^1.4.0",
     "firebase": "^12.18.0",
     "lucide-react": "^1.16.0",
     "react": "^19.2.8",

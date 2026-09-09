@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { 
   getFirestore, 
   doc, 
@@ -10,8 +10,8 @@ import {
   where,
   orderBy, 
   limit, 
-  onSnapshot,
-  addDoc,
+  onSnapshot, 
+  addDoc, 
   serverTimestamp 
 } from "firebase/firestore";
 
@@ -24,30 +24,76 @@ const firebaseConfig = {
   appId: import.meta.env?.VITE_FIREBASE_APP_ID || ""
 };
 
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+let appInstance = null;
+let authInstance = null;
+let dbInstance = null;
 
-export const auth = getAuth(app);
-export const db = getFirestore(app);
+// Only initialize live Firebase if valid, real credentials are provided
+const hasValidConfig = Boolean(
+  firebaseConfig.apiKey && 
+  firebaseConfig.apiKey.length > 10 && 
+  !firebaseConfig.apiKey.includes("your_") &&
+  firebaseConfig.projectId &&
+  !firebaseConfig.projectId.includes("your_")
+);
+
+if (hasValidConfig) {
+  try {
+    appInstance = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+    authInstance = getAuth(appInstance);
+    dbInstance = getFirestore(appInstance);
+  } catch (err) {
+    console.warn("Live Firebase initialization bypassed (running in Smart Local Athlete Mode):", err?.message);
+    appInstance = null;
+    authInstance = null;
+    dbInstance = null;
+  }
+} else {
+  console.info("AuraFit: Running in Smart Local Athlete Mode (no cloud keys required).");
+}
+
+export const auth = authInstance;
+export const db = dbInstance;
+export const isLiveFirebase = Boolean(authInstance && dbInstance);
+
+// Google OAuth Login
+export async function signInWithGoogle() {
+  if (!auth) throw new Error("Firebase Auth is running in smart local offline mode. Add valid Firebase keys in .env to use Google OAuth.");
+  const provider = new GoogleAuthProvider();
+  return await signInWithPopup(auth, provider);
+}
 
 // ---------------------------------------------------------------------------
 // User Profiles
 // ---------------------------------------------------------------------------
 
-/**
- * Create or merge a user profile document in the `users` collection.
- * Uses merge:true so partial updates don't overwrite existing data.
- */
 export async function createUserProfile(userId, email, department = "CSE", displayName = "") {
   if (!userId) return;
-  const userRef = doc(db, "users", userId);
+  const profile = {
+    email,
+    displayName: displayName || email.split("@")[0],
+    department: department.toUpperCase(),
+    totalPoints: 0,
+    squatCount: 0,
+    currentStreak: 1,
+    sport: "Gym / Squats",
+    year: "Student",
+    hostel: "Campus Hostel",
+    buddyOptIn: true,
+    lastActive: new Date().toISOString()
+  };
+
+  if (!db) {
+    try {
+      localStorage.setItem('aurafit_local_user', JSON.stringify({ uid: userId, ...profile }));
+    } catch (e) {}
+    return;
+  }
+
   try {
+    const userRef = doc(db, "users", userId);
     await setDoc(userRef, {
-      email,
-      displayName: displayName || email.split("@")[0],
-      department: department.toUpperCase(),
-      totalPoints: 0,
-      squatCount: 0,
-      currentStreak: 1,
+      ...profile,
       createdAt: serverTimestamp(),
       lastActive: serverTimestamp()
     }, { merge: true });
@@ -56,21 +102,54 @@ export async function createUserProfile(userId, email, department = "CSE", displ
   }
 }
 
+export async function updateUserProfile(userId, updates = {}) {
+  if (!userId) return;
+  try {
+    const saved = localStorage.getItem('aurafit_local_user');
+    if (saved) {
+      const u = JSON.parse(saved);
+      localStorage.setItem('aurafit_local_user', JSON.stringify({ ...u, ...updates }));
+    }
+  } catch (e) {}
+
+  if (!db) return;
+
+  try {
+    const userRef = doc(db, "users", userId);
+    await setDoc(userRef, {
+      ...updates,
+      lastActive: serverTimestamp()
+    }, { merge: true });
+  } catch (err) {
+    console.error("Error updating user profile:", err);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Gamification
 // ---------------------------------------------------------------------------
 
-/**
- * Atomically increment totalPoints and squatCount for a user.
- * Works for all exercise types tracked by AICamera — "squatCount" is a
- * generic "rep count" field; the name is kept for backward-compat.
- */
 export async function addSquatPoints(userId, reps = 1) {
   if (!userId) return;
-  const userRef = doc(db, "users", userId);
+  const pts = 10 * reps;
+
+  // Always update local cache first
   try {
+    const saved = localStorage.getItem('aurafit_local_user');
+    if (saved) {
+      const u = JSON.parse(saved);
+      u.totalPoints = (u.totalPoints || 0) + pts;
+      u.squatCount = (u.squatCount || 0) + reps;
+      localStorage.setItem('aurafit_local_user', JSON.stringify(u));
+    }
+  } catch (e) {}
+
+  if (!db) return;
+
+  try {
+    const userRef = doc(db, "users", userId);
     await setDoc(userRef, {
-      totalPoints: increment(10 * reps),
+      totalPoints: increment(pts),
       squatCount: increment(reps),
       lastActive: serverTimestamp()
     }, { merge: true });
@@ -80,83 +159,113 @@ export async function addSquatPoints(userId, reps = 1) {
 }
 
 // ---------------------------------------------------------------------------
-// Department Leaderboard (real-time)
+// Department Leaderboard (real-time with offline fallback)
 // ---------------------------------------------------------------------------
 
-/**
- * Subscribe to a live department leaderboard by summing totalPoints
- * across all users grouped by department.
- * Returns an unsubscribe function.
- */
 export function subscribeToDepartmentLeaderboard(onUpdate) {
-  const usersQuery = query(collection(db, "users"), orderBy("totalPoints", "desc"), limit(100));
+  const defaultDepts = [
+    { department: 'CSE', points: 340 },
+    { department: 'ECE', points: 290 },
+    { department: 'EEE', points: 190 },
+    { department: 'MECH', points: 120 }
+  ];
 
-  return onSnapshot(usersQuery, (snapshot) => {
-    const departmentTotals = {
-      CSE: 0,
-      ECE: 0,
-      EEE: 0,
-      MECH: 0,
-      IT: 0,
-      CIVIL: 0
-    };
+  const defaultAthletes = [
+    { id: '1', name: 'Aarav Sharma', department: 'CSE', points: 340, squats: 34 },
+    { id: '2', name: 'Priya Mukherjee', department: 'ECE', points: 290, squats: 29 },
+    { id: '3', name: 'Rohan Kulkarni', department: 'CSE', points: 260, squats: 26 },
+    { id: '4', name: 'Ananya Verma', department: 'ECE', points: 210, squats: 21 },
+    { id: '5', name: 'Neha Patel', department: 'EEE', points: 190, squats: 19 }
+  ];
 
-    const topAthletes = [];
+  if (!db) {
+    onUpdate({
+      departments: defaultDepts,
+      topAthletes: defaultAthletes
+    });
+    return () => {};
+  }
 
-    snapshot.docs.forEach((docSnap) => {
-      const data = docSnap.data();
-      const dept = (data.department || "CSE").toUpperCase();
-      departmentTotals[dept] = (departmentTotals[dept] || 0) + (data.totalPoints || 0);
+  try {
+    const usersQuery = query(collection(db, "users"), orderBy("totalPoints", "desc"), limit(100));
 
-      topAthletes.push({
-        id: docSnap.id,
-        name: data.displayName || data.email?.split("@")[0] || "Student Athlete",
-        department: dept,
-        points: data.totalPoints || 0,
-        squats: data.squatCount || 0
+    return onSnapshot(usersQuery, (snapshot) => {
+      const departmentTotals = {
+        CSE: 0,
+        ECE: 0,
+        EEE: 0,
+        MECH: 0,
+        IT: 0,
+        CIVIL: 0
+      };
+
+      const topAthletes = [];
+
+      snapshot.docs.forEach((docSnap) => {
+        const data = docSnap.data();
+        const dept = (data.department || "CSE").toUpperCase();
+        departmentTotals[dept] = (departmentTotals[dept] || 0) + (data.totalPoints || 0);
+
+        topAthletes.push({
+          id: docSnap.id,
+          name: data.displayName || data.email?.split("@")[0] || "Student Athlete",
+          department: dept,
+          points: data.totalPoints || 0,
+          squats: data.squatCount || 0
+        });
+      });
+
+      const formattedDepartments = Object.keys(departmentTotals)
+        .filter((dept) => departmentTotals[dept] > 0 || ['CSE', 'ECE', 'EEE', 'MECH'].includes(dept))
+        .map((dept) => ({
+          department: dept,
+          points: departmentTotals[dept]
+        })).sort((a, b) => b.points - a.points);
+
+      onUpdate({
+        departments: formattedDepartments,
+        topAthletes: topAthletes.slice(0, 5)
+      });
+    }, (error) => {
+      console.warn("Using offline leaderboard data:", error.message);
+      onUpdate({
+        departments: defaultDepts,
+        topAthletes: defaultAthletes
       });
     });
-
-    const formattedDepartments = Object.keys(departmentTotals)
-      .filter((dept) => departmentTotals[dept] > 0 || ['CSE', 'ECE', 'EEE', 'MECH'].includes(dept))
-      .map((dept) => ({
-        department: dept,
-        points: departmentTotals[dept]
-      })).sort((a, b) => b.points - a.points);
-
+  } catch (err) {
     onUpdate({
-      departments: formattedDepartments,
-      topAthletes: topAthletes.slice(0, 5)
+      departments: defaultDepts,
+      topAthletes: defaultAthletes
     });
-  }, (error) => {
-    console.warn("Using offline leaderboard data:", error.message);
-    onUpdate({
-      departments: [
-        { department: 'CSE', points: 340 },
-        { department: 'ECE', points: 290 },
-        { department: 'EEE', points: 190 },
-        { department: 'MECH', points: 120 }
-      ],
-      topAthletes: [
-        { id: '1', name: 'Aarav Sharma', department: 'CSE', points: 340, squats: 34 },
-        { id: '2', name: 'Priya Mukherjee', department: 'ECE', points: 290, squats: 29 },
-        { id: '3', name: 'Rohan Kulkarni', department: 'CSE', points: 260, squats: 26 },
-        { id: '4', name: 'Ananya Verma', department: 'ECE', points: 210, squats: 21 },
-        { id: '5', name: 'Neha Patel', department: 'EEE', points: 190, squats: 19 }
-      ]
-    });
-  });
+    return () => {};
+  }
 }
 
 // ---------------------------------------------------------------------------
 // Workout Log
 // ---------------------------------------------------------------------------
 
-/**
- * Append a completed workout session to the `workouts` collection.
- */
 export async function logWorkout(userId, exercise, duration, pointsEarned = 0) {
   if (!userId) return;
+  const newWorkout = {
+    id: 'w_' + Date.now(),
+    userId,
+    exercise,
+    duration,
+    pointsEarned,
+    createdAt: new Date().toISOString()
+  };
+
+  try {
+    const saved = localStorage.getItem('aurafit_local_workouts');
+    const list = saved ? JSON.parse(saved) : [];
+    list.unshift(newWorkout);
+    localStorage.setItem('aurafit_local_workouts', JSON.stringify(list.slice(0, 30)));
+  } catch (e) {}
+
+  if (!db) return;
+
   try {
     await addDoc(collection(db, "workouts"), {
       userId,
@@ -171,12 +280,9 @@ export async function logWorkout(userId, exercise, duration, pointsEarned = 0) {
 }
 
 // ---------------------------------------------------------------------------
-// Daily Health Metrics (new — closes the daily_logs schema gap)
+// Daily Health Metrics
 // ---------------------------------------------------------------------------
 
-/**
- * Returns the ISO date string for today in YYYY-MM-DD format (local time).
- */
 function todayDateKey() {
   const now = new Date();
   const y = now.getFullYear();
@@ -185,17 +291,17 @@ function todayDateKey() {
   return `${y}-${m}-${d}`;
 }
 
-/**
- * Persist today's health metrics for a user.
- * Schema: daily_logs/{userId}/{YYYY-MM-DD}
- * Uses merge:true so individual metric updates don't overwrite each other.
- *
- * @param {string} userId
- * @param {{ steps?: number, waterLiters?: number, sleepHours?: number }} metrics
- */
 export async function logDailyMetrics(userId, metrics = {}) {
   if (!userId) return;
   const dateKey = todayDateKey();
+
+  try {
+    const current = JSON.parse(localStorage.getItem(`aurafit_daily_${dateKey}`) || '{}');
+    localStorage.setItem(`aurafit_daily_${dateKey}`, JSON.stringify({ ...current, ...metrics }));
+  } catch (e) {}
+
+  if (!db) return;
+
   const logRef = doc(db, "daily_logs", userId, "entries", dateKey);
   try {
     await setDoc(logRef, {
@@ -208,45 +314,51 @@ export async function logDailyMetrics(userId, metrics = {}) {
   }
 }
 
-/**
- * Subscribe to the current user's daily health log for today.
- * Calls onUpdate with the document data (or an empty object if not found).
- * Returns an unsubscribe function.
- *
- * @param {string} userId
- * @param {(data: object) => void} onUpdate
- */
 export function subscribeToUserDailyLog(userId, onUpdate) {
-  if (!userId) {
-    onUpdate({});
+  const dateKey = todayDateKey();
+  const localData = (() => {
+    try {
+      return JSON.parse(localStorage.getItem(`aurafit_daily_${dateKey}`) || '{}');
+    } catch {
+      return {};
+    }
+  })();
+
+  if (!userId || !db) {
+    onUpdate(localData);
     return () => {};
   }
-  const dateKey = todayDateKey();
-  const logRef = doc(db, "daily_logs", userId, "entries", dateKey);
 
-  return onSnapshot(logRef, (snap) => {
-    onUpdate(snap.exists() ? snap.data() : {});
-  }, (error) => {
-    console.warn("Daily log offline fallback:", error.message);
-    onUpdate({});
-  });
+  try {
+    const logRef = doc(db, "daily_logs", userId, "entries", dateKey);
+    return onSnapshot(logRef, (snap) => {
+      onUpdate(snap.exists() ? snap.data() : localData);
+    }, () => {
+      onUpdate(localData);
+    });
+  } catch {
+    onUpdate(localData);
+    return () => {};
+  }
 }
 
 // ---------------------------------------------------------------------------
-// Buddy Matchmaking (new — closes the buddy_requests schema gap)
+// Buddy Matchmaking
 // ---------------------------------------------------------------------------
 
-/**
- * Send a buddy workout invite.
- * Schema: buddy_requests/{auto-id}
- *   fromUid, toBuddyProfileId, sport, status: 'pending', createdAt
- *
- * @param {string} fromUid        - Firebase Auth UID of the requesting user
- * @param {string|number} toBuddyProfileId - ID of the buddy profile (mock or real)
- * @param {string} sport          - Activity type (e.g., "Gym / Squats")
- */
 export async function sendBuddyInvite(fromUid, toBuddyProfileId, sport = "") {
   if (!fromUid) return;
+  try {
+    const saved = localStorage.getItem('aurafit_buddies_invited');
+    const list = saved ? JSON.parse(saved) : [];
+    if (!list.includes(String(toBuddyProfileId))) {
+      list.push(String(toBuddyProfileId));
+      localStorage.setItem('aurafit_buddies_invited', JSON.stringify(list));
+    }
+  } catch (e) {}
+
+  if (!db) return;
+
   try {
     await addDoc(collection(db, "buddy_requests"), {
       fromUid,
@@ -256,37 +368,114 @@ export async function sendBuddyInvite(fromUid, toBuddyProfileId, sport = "") {
       createdAt: serverTimestamp()
     });
   } catch (error) {
-    console.error("Error sending buddy invite:", error);
-    // Re-throw so caller can fall back to localStorage
-    throw error;
+    console.warn("Could not save invite to cloud, preserved locally:", error);
   }
 }
 
-/**
- * Get the list of buddy profile IDs that the current user has already
- * sent invites to (one-time read, not real-time).
- *
- * @param {string} fromUid
- * @returns {Promise<string[]>} array of toBuddyProfileId strings
- */
 export async function getMyBuddyInvites(fromUid) {
-  if (!fromUid) return [];
+  const localList = (() => {
+    try {
+      const s = localStorage.getItem('aurafit_buddies_invited');
+      return s ? JSON.parse(s) : [];
+    } catch {
+      return [];
+    }
+  })();
+
+  if (!fromUid || !db) return localList;
+
   try {
     const q = query(
       collection(db, "buddy_requests"),
       where("fromUid", "==", fromUid),
       limit(100)
     );
-    // We use getDocs via onSnapshot one-shot pattern
     return new Promise((resolve) => {
       const unsub = onSnapshot(q, (snap) => {
         unsub();
-        resolve(snap.docs.map((d) => d.data().toBuddyProfileId));
-      }, () => resolve([]));
+        const ids = snap.docs.map((d) => d.data().toBuddyProfileId);
+        resolve([...new Set([...localList, ...ids])]);
+      }, () => resolve(localList));
     });
   } catch {
-    return [];
+    return localList;
   }
 }
 
+export function subscribeToIncomingBuddyInvites(myUid, onUpdate) {
+  if (!myUid || !db) {
+    onUpdate([]);
+    return () => {};
+  }
 
+  try {
+    const q = query(
+      collection(db, "buddy_requests"),
+      where("toBuddyProfileId", "==", String(myUid)),
+      limit(50)
+    );
+
+    return onSnapshot(q, (snapshot) => {
+      const invites = snapshot.docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...docSnap.data()
+      }));
+      onUpdate(invites);
+    }, (err) => {
+      console.warn("Incoming invites listener fallback:", err?.message);
+      onUpdate([]);
+    });
+  } catch (err) {
+    onUpdate([]);
+    return () => {};
+  }
+}
+
+export async function respondToBuddyInvite(requestId, newStatus = "accepted") {
+  if (!db || !requestId) return;
+  try {
+    const ref = doc(db, "buddy_requests", requestId);
+    await setDoc(ref, {
+      status: newStatus,
+      respondedAt: serverTimestamp()
+    }, { merge: true });
+  } catch (err) {
+    console.warn("Could not respond to invite:", err);
+  }
+}
+
+export function subscribeToDiscoverableAthletes(onUpdate) {
+  if (!db) {
+    onUpdate([]);
+    return () => {};
+  }
+
+  try {
+    const q = query(collection(db, "users"), limit(50));
+    return onSnapshot(q, (snapshot) => {
+      const users = snapshot.docs.map((docSnap) => {
+        const data = docSnap.data();
+        return {
+          id: docSnap.id,
+          name: data.displayName || data.email?.split("@")[0] || "Campus Athlete",
+          dept: (data.department || "CSE").toUpperCase(),
+          year: data.year || "Student",
+          sport: data.sport || "Gym / Squats",
+          time: data.time || "6:00 PM",
+          streak: `${data.currentStreak || 1} Days`,
+          level: (data.totalPoints || 0) > 300 ? "Elite" : (data.totalPoints || 0) > 100 ? "Pro" : "Athlete",
+          bio: data.bio || `Active campus athlete with ${data.totalPoints || 0} XP.`,
+          hostel: data.hostel || "Campus Hostel",
+          isLiveCloudUser: true
+        };
+      });
+      onUpdate(users);
+    }, (err) => {
+      console.warn("Discoverable athletes fallback:", err?.message);
+      onUpdate([]);
+    });
+  } catch {
+    onUpdate([]);
+    return () => {};
+  }
+}

@@ -3,8 +3,8 @@ import {
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword 
 } from 'firebase/auth';
-import { auth, createUserProfile } from '../lib/firebase';
-import { ShieldCheck, UserPlus, LogIn, Sparkles, Building2, Zap } from 'lucide-react';
+import { auth, createUserProfile, signInWithGoogle } from '../lib/firebase';
+import { ShieldCheck, UserPlus, LogIn, Sparkles, Building2, Zap, Globe } from 'lucide-react';
 
 export default function AuthModal({ onClose, onGuestLogin }) {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -21,6 +21,23 @@ export default function AuthModal({ onClose, onGuestLogin }) {
     setLoading(true);
 
     try {
+      if (!auth) {
+        if (!email || !password) throw new Error("Please enter both email and password.");
+        const localUid = 'athlete_' + Date.now();
+        const localProf = {
+          uid: localUid,
+          email,
+          displayName: name || email.split('@')[0],
+          department: department.toUpperCase(),
+          totalPoints: 140,
+          currentStreak: 1
+        };
+        await createUserProfile(localUid, email, department, name || email.split('@')[0]);
+        if (onGuestLogin) onGuestLogin(localProf);
+        onClose();
+        return;
+      }
+
       if (isSignUp) {
         if (!email || !password) throw new Error("Please enter both email and password.");
         const res = await createUserWithEmailAndPassword(auth, email, password);
@@ -45,6 +62,23 @@ export default function AuthModal({ onClose, onGuestLogin }) {
     const demoEmail = `demo_${demoDept.toLowerCase()}@aurafit.campus`;
     const demoPass = "Demo12345!";
     const demoName = `${demoDept} Campus Champion`;
+
+    if (!auth) {
+      if (onGuestLogin) {
+        onGuestLogin({
+          uid: `demo_${demoDept.toLowerCase()}_${Date.now()}`,
+          email: demoEmail,
+          displayName: demoName,
+          department: demoDept,
+          totalPoints: demoDept === 'CSE' ? 140 : 110,
+          squatCount: demoDept === 'CSE' ? 14 : 11,
+          currentStreak: 12
+        });
+      }
+      onClose();
+      setLoading(false);
+      return;
+    }
 
     try {
       // 1. Try Signing in with the pre-configured Demo Account
@@ -71,6 +105,27 @@ export default function AuthModal({ onClose, onGuestLogin }) {
         });
       }
       onClose();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      if (!auth) {
+        handleGuestDemo('CSE');
+        return;
+      }
+      const res = await signInWithGoogle();
+      if (res?.user) {
+        await createUserProfile(res.user.uid, res.user.email, department, res.user.displayName);
+      }
+      onClose();
+    } catch (err) {
+      console.warn("Google Sign-In note:", err);
+      setError(err?.message || "Google sign-in could not be completed.");
     } finally {
       setLoading(false);
     }
@@ -168,6 +223,42 @@ export default function AuthModal({ onClose, onGuestLogin }) {
               Demo as ECE
             </button>
           </div>
+        </div>
+
+        {/* Google OAuth Button */}
+        <button
+          type="button"
+          onClick={handleGoogleSignIn}
+          disabled={loading}
+          className="btn btn-secondary"
+          style={{
+            width: '100%',
+            padding: '10px 14px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '10px',
+            marginBottom: '16px',
+            background: 'rgba(255, 255, 255, 0.05)',
+            border: '1px solid rgba(255, 255, 255, 0.15)',
+            color: '#fff',
+            fontSize: '13px',
+            fontWeight: '600'
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+          </svg>
+          Continue with Google
+        </button>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+          <div style={{ flex: 1, height: '1px', background: 'var(--border-color)' }}></div>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>or with email</span>
+          <div style={{ flex: 1, height: '1px', background: 'var(--border-color)' }}></div>
         </div>
 
         {/* Auth Form */}

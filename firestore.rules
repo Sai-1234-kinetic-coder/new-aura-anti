@@ -44,8 +44,10 @@ service cloud.firestore {
                     && request.resource.data.fromUid == request.auth.uid
                     && request.resource.data.status == 'pending';
       allow read:   if request.auth != null
-                    && resource.data.fromUid == request.auth.uid;
-      allow update, delete: if false;
+                    && (resource.data.fromUid == request.auth.uid || resource.data.toBuddyProfileId == request.auth.uid);
+      allow update: if request.auth != null
+                    && resource.data.toBuddyProfileId == request.auth.uid;
+      allow delete: if false;
     }
 
     // -------------------------------------------------------------------------
