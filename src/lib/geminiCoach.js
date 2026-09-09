@@ -77,15 +77,10 @@ export function getContextSnapshot() {
  * Synthesizes a contextual prompt response based on user mode & biometric state
  */
 export async function generateCoachResponse(userMessage, modeId, context, onChunk) {
-  const apiKey = (typeof localStorage !== 'undefined' && localStorage.getItem('aurafit_gemini_api_key')) || 
-                 import.meta.env?.VITE_GEMINI_API_KEY || '';
+  const userEnteredKey = typeof localStorage !== 'undefined' ? localStorage.getItem('aurafit_gemini_api_key') : null;
   const isMedicalQuery = /pain|hurt|injury|torn|sprain|fracture|doctor|medicine|pill|disease|diagnos/i.test(userMessage);
 
-  // If Gemini API Key is provided, call Gemini 1.5 Flash
-  if (apiKey) {
-    try {
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-      const systemInstruction = `You are "AuraCoach", an elite Olympic-level AI Sports Scientist, Certified Strength & Conditioning Coach, and Cognitive Chess Mentor inside the AuraFit platform.
+  const systemInstruction = `You are "AuraCoach", an elite Olympic-level AI Sports Scientist, Certified Strength & Conditioning Coach, and Cognitive Chess Mentor inside the AuraFit platform.
 User Biometrics:
 - Weight: ${context.metabolic.weightKg} kg, Height: ${context.metabolic.heightCm} cm
 - BMI: ${context.metabolic.bmi} (${context.metabolic.somaticType || 'Athletic'})
@@ -100,6 +95,33 @@ RULES:
 3. If the user mentions physical pain or symptoms of injury, state clearly: "DISCLAIMER: I am an athletic wellness assistant, not a physician. Please consult a licensed sports medicine physician or physical therapist for clinical injury diagnosis."
 4. Tailor all advice specifically to their active mode (${modeId}) and their somatic profile.`;
 
+  // 1. Attempt secure serverless proxy (/api/gemini)
+  // Keeps master GEMINI_API_KEY 100% on the server without bundling into public JS
+  try {
+    const proxyHeaders = { 'Content-Type': 'application/json' };
+    if (userEnteredKey) proxyHeaders['x-gemini-api-key'] = userEnteredKey;
+
+    const proxyRes = await fetch('/api/gemini', {
+      method: 'POST',
+      headers: proxyHeaders,
+      body: JSON.stringify({ systemInstruction, userMessage })
+    });
+
+    if (proxyRes.ok) {
+      const data = await proxyRes.json();
+      if (data.text) {
+        await streamText(data.text, onChunk);
+        return data.text;
+      }
+    }
+  } catch (proxyErr) {
+    // Handled gracefully: Fall back if running on static host without serverless functions
+  }
+
+  // 2. Direct client call ONLY IF user explicitly entered a personal BYOK key in settings
+  if (userEnteredKey) {
+    try {
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${userEnteredKey}`;
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -124,7 +146,7 @@ RULES:
         }
       }
     } catch (err) {
-      console.warn("Gemini cloud API fallback:", err);
+      console.warn("Direct Gemini client fallback note:", err);
     }
   }
 

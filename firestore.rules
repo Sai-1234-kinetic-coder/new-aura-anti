@@ -4,22 +4,53 @@ service cloud.firestore {
 
     // -------------------------------------------------------------------------
     // users/{uid}
-    //   - Any authenticated user can READ all profiles (needed for leaderboard)
-    //   - Only the owner can WRITE their own profile
+    //   - Authenticated users can READ profiles (needed for department leaderboard)
+    //   - Owner can CREATE with initial cap (max 150 starter XP, 0 squats)
+    //   - Owner can UPDATE with strictly bounded point deltas (max +200 pts, max +25 squats/tx)
+    //   - Prevents cheating/spoofing (e.g. setting totalPoints: 999999)
     // -------------------------------------------------------------------------
     match /users/{userId} {
       allow read: if request.auth != null;
-      allow write: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId
+                    && request.resource.data.totalPoints is int
+                    && request.resource.data.totalPoints >= 0
+                    && request.resource.data.totalPoints <= 150
+                    && request.resource.data.squatCount is int
+                    && request.resource.data.squatCount == 0;
+      allow update: if request.auth != null && request.auth.uid == userId
+                    && (
+                      // Total points delta must be positive and max 200 XP per write
+                      !('totalPoints' in request.resource.data) ||
+                      (
+                        request.resource.data.totalPoints is int &&
+                        request.resource.data.totalPoints >= resource.data.totalPoints &&
+                        request.resource.data.totalPoints <= resource.data.totalPoints + 200
+                      )
+                    )
+                    && (
+                      // Squat count increment must be positive and max 25 reps per batch
+                      !('squatCount' in request.resource.data) ||
+                      (
+                        request.resource.data.squatCount is int &&
+                        request.resource.data.squatCount >= resource.data.squatCount &&
+                        request.resource.data.squatCount <= resource.data.squatCount + 25
+                      )
+                    );
+      allow delete: if false;
     }
 
     // -------------------------------------------------------------------------
     // workouts/{workoutId}
     //   - Authenticated users can CREATE a workout for themselves only
+    //   - Points earned must be integer between 0 and 200
     //   - READ is restricted to the document owner (userId field matches auth uid)
     // -------------------------------------------------------------------------
     match /workouts/{workoutId} {
       allow create: if request.auth != null
-                    && request.resource.data.userId == request.auth.uid;
+                    && request.resource.data.userId == request.auth.uid
+                    && request.resource.data.pointsEarned is int
+                    && request.resource.data.pointsEarned >= 0
+                    && request.resource.data.pointsEarned <= 200;
       allow read:   if request.auth != null
                     && resource.data.userId == request.auth.uid;
       allow update, delete: if false;

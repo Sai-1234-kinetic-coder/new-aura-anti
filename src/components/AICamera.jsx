@@ -68,9 +68,36 @@ export default function AICamera({
   const poseEngineRef = useRef(null);
   const lastLandmarksRef = useRef(null);
   const [isMediaPipeActive, setIsMediaPipeActive] = useState(false);
-  const [mirrorVideo] = useState(() => {
+  const [mirrorVideo, setMirrorVideo] = useState(() => {
     return typeof localStorage !== 'undefined' ? localStorage.getItem('aurafit_mirror_video') !== 'false' : true;
   });
+
+  // Listen to live settings changes without needing a page refresh or remount
+  useEffect(() => {
+    const handleStorage = (e) => {
+      if (e.key === 'aurafit_mirror_video') setMirrorVideo(e.newValue !== 'false');
+      if (e.key === 'aurafit_voice_enabled') setVoiceEnabled(e.newValue !== 'false');
+    };
+    const handleCustomUpdate = (e) => {
+      if (e.detail?.mirrorVideo !== undefined) {
+        setMirrorVideo(e.detail.mirrorVideo);
+      } else {
+        setMirrorVideo(localStorage.getItem('aurafit_mirror_video') !== 'false');
+      }
+      if (e.detail?.voiceEnabled !== undefined) {
+        setVoiceEnabled(e.detail.voiceEnabled);
+      } else {
+        setVoiceEnabled(localStorage.getItem('aurafit_voice_enabled') !== 'false');
+      }
+    };
+
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('aurafit_settings_updated', handleCustomUpdate);
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('aurafit_settings_updated', handleCustomUpdate);
+    };
+  }, []);
 
   // Check Form Function
   const isGoodForm = (exerciseType === 'Plank' || exerciseType === 'Warrior II')

@@ -102,6 +102,7 @@ export default function SettingsModal({ isOpen, onClose, onSettingsUpdated }) {
     const next = !mirrorVideo;
     setMirrorVideo(next);
     localStorage.setItem('aurafit_mirror_video', String(next));
+    window.dispatchEvent(new CustomEvent('aurafit_settings_updated', { detail: { mirrorVideo: next } }));
     toast.info(`Camera mirror ${next ? 'enabled' : 'disabled'}`);
     if (onSettingsUpdated) onSettingsUpdated();
   };
@@ -111,6 +112,7 @@ export default function SettingsModal({ isOpen, onClose, onSettingsUpdated }) {
     const next = !voiceEnabled;
     setVoiceEnabled(next);
     localStorage.setItem('aurafit_voice_enabled', String(next));
+    window.dispatchEvent(new CustomEvent('aurafit_settings_updated', { detail: { voiceEnabled: next } }));
     toast.info(`Voice audio coaching ${next ? 'enabled' : 'muted'}`);
     if (onSettingsUpdated) onSettingsUpdated();
   };
