@@ -18,6 +18,102 @@ import {
 import { COACH_MODES, getContextSnapshot, generateCoachResponse } from '../../lib/geminiCoach';
 import { audioSynth } from '../../lib/audioSynth';
 
+function parseInlineFormatting(str) {
+  if (!str) return '';
+  const cleaned = str.replace(/\$<+\s*90\^?\\circ\$/g, '(< 90°)')
+                     .replace(/\$([^$]+)\$/g, '$1');
+
+  const parts = cleaned.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return (
+        <strong key={i} style={{ color: '#fff', fontWeight: '700' }}>
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    if (part.startsWith('*') && part.endsWith('*') && part.length > 2) {
+      return <em key={i} style={{ color: '#94a3b8' }}>{part.slice(1, -1)}</em>;
+    }
+    return part;
+  });
+}
+
+function renderMarkdownContent(text) {
+  if (!text) return null;
+  const lines = text.split('\n');
+  const elements = [];
+  let listItems = [];
+
+  const flushList = (key) => {
+    if (listItems.length > 0) {
+      elements.push(
+        <ul key={`ul_${key}`} style={{ margin: '6px 0', paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          {listItems.map((item, i) => (
+            <li key={i} style={{ color: 'var(--text-secondary)' }}>{parseInlineFormatting(item)}</li>
+          ))}
+        </ul>
+      );
+      listItems = [];
+    }
+  };
+
+  lines.forEach((line, index) => {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      flushList(index);
+      return;
+    }
+
+    if (trimmed.startsWith('### ') || trimmed.startsWith('## ')) {
+      flushList(index);
+      const title = trimmed.replace(/^#+\s*/, '');
+      elements.push(
+        <div key={index} style={{
+          fontSize: '14px',
+          fontWeight: '700',
+          color: '#38bdf8',
+          margin: '8px 0 4px 0',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px'
+        }}>
+          {parseInlineFormatting(title)}
+        </div>
+      );
+    } else if (trimmed.startsWith('> ')) {
+      flushList(index);
+      const quote = trimmed.replace(/^>\s*/, '');
+      elements.push(
+        <div key={index} style={{
+          background: 'rgba(239, 68, 68, 0.12)',
+          borderLeft: '3px solid #ef4444',
+          padding: '8px 12px',
+          borderRadius: '4px',
+          margin: '6px 0',
+          fontSize: '12px',
+          color: '#fca5a5'
+        }}>
+          {parseInlineFormatting(quote)}
+        </div>
+      );
+    } else if (/^[-*•]\s+/.test(trimmed) || /^\d+\.\s+/.test(trimmed)) {
+      const content = trimmed.replace(/^[-*•]\s+|\d+\.\s+/, '');
+      listItems.push(content);
+    } else {
+      flushList(index);
+      elements.push(
+        <p key={index} style={{ margin: '4px 0', color: 'inherit' }}>
+          {parseInlineFormatting(trimmed)}
+        </p>
+      );
+    }
+  });
+
+  flushList('final');
+  return elements;
+}
+
 export default function AuraCoach({ userProfile }) {
   const [selectedMode, setSelectedMode] = useState('fitness');
   const activeModeConfig = COACH_MODES.find(m => m.id === selectedMode) || COACH_MODES[0];
@@ -256,13 +352,18 @@ export default function AuraCoach({ userProfile }) {
                   borderRadius: isBot ? '4px 16px 16px 16px' : '16px 4px 16px 16px',
                   border: isBot ? '1px solid var(--border-color)' : 'none',
                   fontSize: '13px',
-                  lineHeight: '1.6',
-                  whiteSpace: 'pre-wrap'
+                  lineHeight: '1.6'
                 }}>
-                  {msg.text || (
-                    <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                      AuraCoach is synthesizing response...
-                    </span>
+                  {isBot ? (
+                    msg.text ? (
+                      <div>{renderMarkdownContent(msg.text)}</div>
+                    ) : (
+                      <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                        AuraCoach is synthesizing response...
+                      </span>
+                    )
+                  ) : (
+                    <div style={{ whiteSpace: 'pre-wrap' }}>{msg.text}</div>
                   )}
                   <div style={{
                     fontSize: '10px',

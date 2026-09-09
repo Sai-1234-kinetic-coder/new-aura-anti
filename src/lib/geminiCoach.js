@@ -1,7 +1,7 @@
 /**
  * AuraFit AuraCoach AI Engine
  * Context-injected fitness, nutrition, mindset, and chess conversational assistant.
- * Supports external LLM endpoint + built-in contextual reasoning intelligence.
+ * Supports external Google Gemini API + built-in contextual sports science reasoning intelligence.
  */
 
 export const COACH_MODES = [
@@ -52,7 +52,7 @@ export const COACH_MODES = [
 ];
 
 /**
- * Reads all active biometric and performance context across the 8 chambers
+ * Reads all active biometric and performance context across the chambers
  */
 export function getContextSnapshot() {
   let metabolic = { weightKg: 72, heightCm: 175, bmi: 23.5, goal: 'fat_loss', targetCalories: 2150, somaticType: 'Mesomorph' };
@@ -130,17 +130,52 @@ RULES:
 
   // Fallback: Built-in Contextual Sports Intelligence Engine
   let responseText = '';
+  const msgLower = (userMessage || '').toLowerCase();
 
   if (isMedicalQuery) {
     responseText = `### ⚠️ Safety & Sports Medicine Protocol\n\n> **Important Disclaimer:** AuraCoach is designed for athletic coaching, form correction, and nutritional guidance. I cannot diagnose clinical injuries, ligament tears, or medical pathology.\n\n**Immediate Safety Recommendations:**\n- **Halt Strenuous Reps:** Cease loaded compound movements (Squats, heavy lunges) immediately.\n- **PRICE Protocol:** Protect the joint, apply light compression, elevate, and rest.\n- **Seek Professional Evaluation:** Please consult a certified sports physical therapist or orthopedic physician to assess structural joint integrity before resuming high-impact training.\n\n*Would you like me to suggest low-impact mobility flows or breathwork while you recover?*`;
-  } else if (modeId === 'fitness') {
-    responseText = `### 🏋️ Tailored Movement Protocol for Your Profile\n\nBased on your **${context.metabolic.somaticType}** somatic structure and goal of **${context.metabolic.goal?.replace('_', ' ').toUpperCase()}**:\n\n1. **Dynamic Joint Priming (3-5 mins):**\n   - 10 Deep Cossack Squats to mobilize adductors and ankles.\n   - 12 Cat-Cow spinal extensions to activate deep transverse core muscles.\n   - 15 Arm Circles & Scapular Push-ups to stabilize shoulder rotator cuffs.\n\n2. **AI Camera Form Focus:**\n   - When executing **AI Squats** in Chamber 2, ensure your hip crease travels below knee level ($< 90^\\circ$) before reversing the drive.\n   - Keep your chest proud and drive through mid-foot to maximize glute recruitment.\n\n3. **Post-Workout Recovery:**\n   - Spend 5 minutes practicing **Vayu Mudra** or static quad stretches to reduce lactic soreness.\n\n*Ready to test this in the AI Camera Arena?*`;
+  }
+  // --- Specific Fitness Queries ---
+  else if (/warm(\s|-)?up|prime|stretching before/i.test(msgLower)) {
+    responseText = `### 🏃 Dynamic Joint Priming Protocol for AI Squats\n\nFollow this 4-minute joint-activation flow before stepping in front of Chamber 2 AI Camera:\n\n- **10 Deep Cossack Squats**: Mobilizes adductors, hips, and ankle dorsiflexion.\n- **12 Glute Bridges**: Hold top contraction for 2 seconds to activate posterior chain.\n- **15 Cat-Cow Spinal Extensions**: Mobilizes lumbar spine and deep transverse core.\n- **10 Bodyweight Good Mornings**: Pre-stretches hamstrings for full squat depth.\n\n*Step into Chamber 2 and achieve sub-90° knee flexion for full XP scoring!*`;
+  } else if (/tight hip|hip mobility|alternative movement|can't squat/i.test(msgLower)) {
+    responseText = `### 🧘 Hip Mobility & Squat Relief Protocol\n\nTight hip flexors restrict pelvic rotation during knee flexion. Implement these corrections:\n\n- **90/90 Hip Switches (8 reps/side)**: Actively unglues femoral head impingement.\n- **Elevated Pigeon Pose (45s hold)**: Lengthens piriformis and deep glute rotators.\n- **Low Dragon Lunge with Reach**: Opens tight psoas muscles.\n\n*Alternative Movements*: In Chamber 2, switch exercise mode to **Sumo Squats** (wider stance) or **Walking Lunges** to reduce anterior hip pinching.`;
+  } else if (/circuit|fat loss|hiit|burn|weight loss/i.test(msgLower)) {
+    responseText = `### 🔥 High-Intensity Bodyweight MetCon Circuit\n\nTailored for **${context.metabolic.goal?.replace('_', ' ').toUpperCase()}** and your somatic profile:\n\nPerform 4 rounds (40s work / 20s rest):\n1. **AI Camera Air Squats**: 20 reps focusing on explosive hip extension.\n2. **Tabata Jumping Jacks**: Maximum cardiorespiratory pace.\n3. **Decline / Standard Pushups**: 15 reps with tucked elbows.\n4. **High Plank to Dolphin Flow**: Core and scapular stability.\n\n*Estimated Burn*: ~210 kcal. Log this in Chamber 1 to track your daily progress!`;
+  }
+  // --- Specific Nutrition Queries ---
+  else if (/post(-|\s)?workout|protein synthesis|eat after/i.test(msgLower)) {
+    responseText = `### 🥗 Precision Post-Workout Anabolic Fuel Window\n\nConsume within 45 minutes of finishing training for maximum protein synthesis:\n\n- **High BV Protein Target**: 30–35g (e.g. 150g grilled chicken, 180g low-fat paneer, or 1.5 scoops whey isolate).\n- **Glycogen Replenishment**: 45–50g fast complex carbs (1 ripe banana + 45g rolled oats) to halt cortisol.\n- **Electrolyte Restoration**: 500ml water with a pinch of Himalayan pink salt.\n\n*Current Daily Target*: **${context.metabolic.targetCalories || 2150} kcal**.`;
+  } else if (/breakfast|recipe|morning meal/i.test(msgLower)) {
+    responseText = `### 🍳 Clean 450-Kcal High-Protein Breakfast\n\nCalibrated for your **${context.metabolic.somaticType}** body composition:\n\n- **Ingredients**:\n  - 3 Whole Eggs (poached or scrambled) with fresh baby spinach\n  - 1 slice 100% Sprouted Whole Grain Toast\n  - 1/4 Sliced Avocado (healthy monounsaturated fats)\n  - 100g Fresh Blueberries or Apple slices\n- **Nutritional Breakdown**: 32g Protein | 34g Carbs | 18g Healthy Fats | ~448 kcal.`;
+  } else if (/hydrat|water|bloat|drink/i.test(msgLower)) {
+    responseText = `### 💧 Anti-Bloat Hydration Protocol\n\nYou have logged **${context.waterMl} ml** today. To hit your target without stomach distension:\n\n- **Cadence**: Sip 180–220ml every 45 minutes instead of chugging 500ml at once.\n- **Sodium Balance**: Add a pinch of pink salt or lemon juice to prevent electrolyte dilution.\n- **Timing**: Cease large fluid volumes 60 minutes before heavy squat sessions and sleep.`;
+  }
+  // --- Specific Mindset & Zen Queries ---
+  else if (/box breath|nervous system|calm|anxiety/i.test(msgLower)) {
+    responseText = `### 🧘 4-4-4-4 Tactical Box Breathing Science\n\nBox breathing stimulates the **Vagus nerve** to balance autonomic arousal:\n\n1. **Inhale (4s)**: Expand the diaphragm, drawing oxygen deep into lower lungs.\n2. **Hold (4s)**: Retain oxygen, allowing optimal alveoli gas exchange.\n3. **Exhale (4s)**: Smoothly empty lungs, lowering systolic pressure.\n4. **Hold (4s)**: Pause in calm, eliminating acute salivary cortisol.\n\n*Launch Chamber 5 (Zen & Mudras) to follow the animated breathing visual!*`;
+  } else if (/mudra|fatigue|energy/i.test(msgLower)) {
+    responseText = `### 🪷 Prana Mudra for Midday Mental Fatigue\n\nWhen feeling sluggish without wanting caffeine jitters:\n\n- **Finger Lock**: Connect the tips of your **ring finger** and **little finger** with your **thumb**. Keep index and middle fingers extended.\n- **Duration**: Hold for 10–12 minutes with calm diaphragmatic breathing.\n- **Athletic Benefit**: Increases vital bio-energy (Prana), improves cellular oxygen uptake, and stabilizes focus.`;
+  } else if (/tension|release|somatic/i.test(msgLower)) {
+    responseText = `### ⚡ 2-Minute Somatic Tension Release Flow\n\nRelease stored neuromuscular tension in 3 targeted steps:\n\n1. **Progressive Neck Decompression (30s)**: Slowly drop right ear to right shoulder; inhale deeply into left trapezius. Switch sides.\n2. **Thoracic Box Shakeout (30s)**: Vigorously shake hands and bounce heels on the floor to discharge sympathetic nervous tone.\n3. **Deep Sigh Exhale (60s)**: Take two quick nasal inhales followed by one long, audibly releasing mouth sigh.`;
+  }
+  // --- Specific Chess & Strategy Queries ---
+  else if (/center|opening|principles/i.test(msgLower)) {
+    responseText = `### ♟️ Grandmaster Opening & Center Control\n\nFor your current **${context.chess.elo} Elo** rating:\n\n- **1. Claim the Classical Center**: Stake out d4/e4 immediately with pawns to deny enemy knights forward outposts.\n- **2. Knights Before Bishops**: Develop knights to f3/c3 before pinning with bishops.\n- **3. King Safety First**: Castle kingside within the first 8 moves to connect rooks.\n\n*Test these opening principles against the bot in Chamber 6 (Cognitive Chess)!*`;
+  } else if (/fork|tunnel vision|defend/i.test(msgLower)) {
+    responseText = `### ♟️ Defending Against Knight & Queen Forks\n\nTactical forks occur when two pieces share geometric vulnerability:\n\n- **Color Coordination**: Knights only attack squares of opposite color from where they stand. Track their next jumping square.\n- **Candidate Zwischenzug**: If forked, look for an in-between check or counter-threat against opponent's King.\n- **Piece Harmonization**: Never place your King and Queen on the same rank or diagonal without an intervening pawn shield.`;
+  } else if (/focus|cognitive|athletic|transfer/i.test(msgLower)) {
+    responseText = `### 🧠 Cognitive Transfer: Chess to Physical Athletics\n\nChess conditioning reinforces mental discipline during strenuous lifting:\n\n- **Impulse Control**: Rushing a move creates a blunder; rushing a squat rep breaks lumbar neutral.\n- **Cadence Discipline**: Just as you calculate 3 candidate moves, maintain 2-second controlled eccentric descents in the gym.\n- **Endurance Index**: Your current cognitive score is **${context.chess.enduranceIndex}/100**. 15 mins of tactical chess sharpens prefrontal focus!`;
+  }
+  // Generic Mode Fallbacks
+  else if (modeId === 'fitness') {
+    responseText = `### 🏋️ Tailored Movement Protocol for Your Profile\n\nBased on your **${context.metabolic.somaticType}** somatic structure and goal of **${context.metabolic.goal?.replace('_', ' ').toUpperCase()}**:\n\n- **Dynamic Joint Priming (3-5 mins)**: 10 Deep Cossack Squats and 12 Cat-Cow extensions.\n- **AI Camera Form Focus**: In Chamber 2, ensure hip crease travels below knee level (< 90°) before driving upward.\n- **Post-Workout Recovery**: Spend 5 minutes practicing Vayu Mudra or static quad stretches.\n\n*Ready to test this in Chamber 2 AI Camera Arena?*`;
   } else if (modeId === 'nutrition') {
-    responseText = `### 🥗 Precision Metabolic Fuel Plan\n\nTargeting your daily allocation of **${context.metabolic.targetCalories || 2150} kcal**:\n\n1. **Optimal Post-Workout Fuel Window (within 45 mins):**\n   - **Protein Target:** 30–35g high biological value protein (e.g. 150g grilled chicken breast or 1.5 scoops whey isolate).\n   - **Carb Replenishment:** 40–50g fast-acting complex carbohydrates (e.g. 1 ripe banana + 1/2 cup rolled oats) to quickly refill depleted muscle glycogen stores.\n\n2. **Hydration Status Check:**\n   - You have logged **${context.waterMl} ml** so far today. Aim for an additional **${Math.max(0, 3000 - context.waterMl)} ml** with a pinch of pink Himalayan sea salt to support neuromuscular contractions.\n\n3. **Foods to Prioritize:**\n   - Wild salmon, Greek yogurt, spinach, quinoa, and cold-pressed extra virgin olive oil for cellular membrane recovery.`;
+    responseText = `### 🥗 Precision Metabolic Fuel Plan\n\nTargeting your daily allocation of **${context.metabolic.targetCalories || 2150} kcal**:\n\n- **Post-Workout Target**: 30–35g high BV protein within 45 mins of exercise.\n- **Carbohydrates**: 45g complex carbs to replenish muscle glycogen.\n- **Hydration Status**: Logged **${context.waterMl} ml** today. Aim for an additional **${Math.max(0, 3000 - context.waterMl)} ml**.`;
   } else if (modeId === 'mindset') {
-    responseText = `### 🧘 Parasympathetic Nervous System Calibration\n\nSharpening physical endurance begins with nervous system composure:\n\n1. **4-4-4-4 Tactical Box Breathing:**\n   - Inhale for **4s**, Hold for **4s**, Exhale for **4s**, Hold for **4s**.\n   - This rhythmic cycle directly stimulates the **Vagus nerve**, reducing salivary cortisol and stabilizing heart rate variability (HRV).\n\n2. **Recommended Mudra Focus:**\n   - **Prana Mudra** (joining ring finger, little finger, and thumb tips) for 10–15 minutes will help restore mental stamina without caffeine crashes.\n\n3. **Mindset Mantram:**\n   - *"Form precedes weight. Calm precedes power."* Shift your focus to deliberate, controlled repetitions.`;
+    responseText = `### 🧘 Parasympathetic Nervous System Calibration\n\nSharpening physical stamina begins with nervous system composure:\n\n- **4-4-4-4 Tactical Box Breathing**: Inhale 4s, Hold 4s, Exhale 4s, Hold 4s.\n- **Prana Mudra Focus**: Join ring finger, little finger, and thumb tips for 10 minutes.\n- **Mindset Focus**: *"Form precedes weight. Calm precedes power."*`;
   } else if (modeId === 'chess') {
-    responseText = `### ♟️ Grandmaster Cognitive Conditioning\n\nYour current Chess Elo is **${context.chess.elo}** with a Cognitive Endurance Index of **${context.chess.enduranceIndex}/100**:\n\n1. **Core Tactical Rules for Your Tier:**\n   - **Candidate Moves:** Before making any move, calculate your opponent’s most aggressive checks, captures, and threats.\n   - **King Safety:** Castle early (within the first 7–10 moves) to connect your rooks and prevent corridor mate tactics.\n   - **Piece Harmonization:** Avoid moving the same minor piece twice in the opening unless executing a concrete winning tactic.\n\n2. **Cognitive Transfer to Athletic Training:**\n   - Just as in chess where rushing causes blunders, rushing squat rep cadence compromises knee alignment. Maintain 2-second controlled descents in both arenas!\n\n*Would you like to analyze a specific opening or solve the daily checkmate puzzle?*`;
+    responseText = `### ♟️ Grandmaster Cognitive Conditioning\n\nYour current Chess Elo is **${context.chess.elo}** (Endurance: **${context.chess.enduranceIndex}/100**):\n\n- **Candidate Moves**: Calculate checks, captures, and threats before every move.\n- **King Safety**: Castle within the first 7–10 moves.\n- **Cadence Transfer**: Maintain 2-second controlled descents in both chess and gym squats!`;
   }
 
   await streamText(responseText, onChunk);
@@ -157,6 +192,6 @@ async function streamText(fullText, onChunk) {
   for (let i = 0; i < words.length; i++) {
     accumulated += (i > 0 ? ' ' : '') + words[i];
     onChunk(accumulated);
-    await new Promise(res => setTimeout(res, 20));
+    await new Promise(res => setTimeout(res, 18));
   }
 }
