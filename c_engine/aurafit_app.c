@@ -100,15 +100,15 @@ static void generate_mock_bicep_curl_frame(double cycle_progress, double jitter,
  */
 static void generate_mock_squat_frame(double cycle_progress, double jitter,
                                       Point2D* out_hip, Point2D* out_knee, Point2D* out_ankle) {
-    /* Ankle at (0.5, 0.85) */
-    out_ankle->x = 0.50;
-    out_ankle->y = 0.85;
+    /* Ankle at (0.52, 0.90) */
+    out_ankle->x = 0.52;
+    out_ankle->y = 0.90;
     out_ankle->confidence = 0.99f;
     out_ankle->is_valid = true;
 
-    /* Knee at (0.52, 0.60) */
+    /* Knee at (0.52, 0.68) */
     out_knee->x = 0.52;
-    out_knee->y = 0.60;
+    out_knee->y = 0.68;
     out_knee->confidence = 0.98f;
     out_knee->is_valid = true;
 
@@ -123,10 +123,10 @@ static void generate_mock_squat_frame(double cycle_progress, double jitter,
     }
 
     double angle_rad = DEG_TO_RAD(target_angle_deg);
-    double thigh_len = 0.30;
+    double thigh_len = 0.25;
 
-    out_hip->x = out_knee->x - thigh_len * cos(angle_rad);
-    out_hip->y = out_knee->y - thigh_len * sin(angle_rad);
+    out_hip->x = out_knee->x - thigh_len * sin(angle_rad);
+    out_hip->y = out_knee->y + thigh_len * cos(angle_rad);
     out_hip->confidence = 0.97f;
     out_hip->is_valid = true;
 }
@@ -137,10 +137,16 @@ static void generate_mock_squat_frame(double cycle_progress, double jitter,
 static void generate_mock_pushup_frame(double cycle_progress, double jitter,
                                        Point2D* out_shoulder, Point2D* out_elbow, Point2D* out_wrist) {
     /* Wrist fixed to deck */
-    out_wrist->x = 0.38;
+    out_wrist->x = 0.45;
     out_wrist->y = 0.80;
     out_wrist->confidence = 0.99f;
     out_wrist->is_valid = true;
+
+    /* Elbow fixed at (0.45, 0.65) */
+    out_elbow->x = 0.45;
+    out_elbow->y = 0.65;
+    out_elbow->confidence = 0.98f;
+    out_elbow->is_valid = true;
 
     /* Cycle: Top extension (165 deg) down to bottom inflection (90 deg) */
     double sine_phase = sin(cycle_progress * 2.0 * M_PI - (M_PI / 2.0));
@@ -152,15 +158,10 @@ static void generate_mock_pushup_frame(double cycle_progress, double jitter,
         target_angle_deg += (r * jitter);
     }
 
-    out_elbow->x = 0.38;
-    out_elbow->y = 0.65;
-    out_elbow->confidence = 0.98f;
-    out_elbow->is_valid = true;
-
     double angle_rad = DEG_TO_RAD(target_angle_deg);
     double humerus_len = 0.20;
-    out_shoulder->x = out_elbow->x + humerus_len * cos(angle_rad);
-    out_shoulder->y = out_elbow->y - humerus_len * sin(angle_rad);
+    out_shoulder->x = out_elbow->x - humerus_len * sin(angle_rad);
+    out_shoulder->y = out_elbow->y + humerus_len * cos(angle_rad);
     out_shoulder->confidence = 0.97f;
     out_shoulder->is_valid = true;
 }
@@ -170,13 +171,13 @@ static void generate_mock_pushup_frame(double cycle_progress, double jitter,
  */
 static void generate_mock_plank_frame(double cycle_progress, double jitter,
                                       Point2D* out_shoulder, Point2D* out_elbow, Point2D* out_wrist) {
-    out_wrist->x = 0.45;
-    out_wrist->y = 0.72;
+    out_wrist->x = 0.50;
+    out_wrist->y = 0.70;
     out_wrist->confidence = 0.99f;
     out_wrist->is_valid = true;
 
-    out_elbow->x = 0.30;
-    out_elbow->y = 0.72;
+    out_elbow->x = 0.35;
+    out_elbow->y = 0.70;
     out_elbow->confidence = 0.98f;
     out_elbow->is_valid = true;
 
@@ -186,7 +187,7 @@ static void generate_mock_plank_frame(double cycle_progress, double jitter,
         angle_deg += (r * jitter * 0.4);
     }
 
-    out_shoulder->x = 0.30;
+    out_shoulder->x = 0.35;
     out_shoulder->y = 0.55 + (sin(cycle_progress * 4.0 * M_PI) * 0.005);
     out_shoulder->confidence = 0.98f;
     out_shoulder->is_valid = true;

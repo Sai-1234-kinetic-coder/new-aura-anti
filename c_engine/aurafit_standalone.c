@@ -1483,16 +1483,19 @@ static void generate_mock_squat_frame(double cycle_progress, double jitter,
     if (jitter > 0.0) {
         double r = ((double)rand() / (double)RAND_MAX) - 0.5;
         target_angle_deg += (r * jitter);
-       double angle_rad = DEG_TO_RAD(target_angle_deg);
-    double thigh_len = 0.30;
-    out_hip->x = out_knee->x - thigh_len * cos(angle_rad);
-    out_hip->y = out_knee->y - thigh_len * sin(angle_rad);
+    }
+
+    double angle_rad = DEG_TO_RAD(target_angle_deg);
+    double thigh_len = 0.25;
+    out_hip->x = out_knee->x - thigh_len * sin(angle_rad);
+    out_hip->y = out_knee->y + thigh_len * cos(angle_rad);
     out_hip->confidence = 0.97f; out_hip->is_valid = true;
 }
 
 static void generate_mock_pushup_frame(double cycle_progress, double jitter,
                                        Point2D* out_shoulder, Point2D* out_elbow, Point2D* out_wrist) {
-    out_wrist->x = 0.38; out_wrist->y = 0.80; out_wrist->confidence = 0.99f; out_wrist->is_valid = true;
+    out_wrist->x = 0.45; out_wrist->y = 0.80; out_wrist->confidence = 0.99f; out_wrist->is_valid = true;
+    out_elbow->x = 0.45; out_elbow->y = 0.65; out_elbow->confidence = 0.98f; out_elbow->is_valid = true;
     double sine_phase = sin(cycle_progress * 2.0 * M_PI - (M_PI / 2.0));
     double norm_pos = (sine_phase + 1.0) / 2.0;
     double target_angle_deg = 165.0 - (norm_pos * 75.0);
@@ -1500,24 +1503,23 @@ static void generate_mock_pushup_frame(double cycle_progress, double jitter,
         double r = ((double)rand() / (double)RAND_MAX) - 0.5;
         target_angle_deg += (r * jitter);
     }
-    out_elbow->x = 0.38; out_elbow->y = 0.65; out_elbow->confidence = 0.98f; out_elbow->is_valid = true;
     double angle_rad = DEG_TO_RAD(target_angle_deg);
     double humerus_len = 0.20;
-    out_shoulder->x = out_elbow->x + humerus_len * cos(angle_rad);
-    out_shoulder->y = out_elbow->y - humerus_len * sin(angle_rad);
+    out_shoulder->x = out_elbow->x - humerus_len * sin(angle_rad);
+    out_shoulder->y = out_elbow->y + humerus_len * cos(angle_rad);
     out_shoulder->confidence = 0.97f; out_shoulder->is_valid = true;
 }
 
 static void generate_mock_plank_frame(double cycle_progress, double jitter,
                                       Point2D* out_shoulder, Point2D* out_elbow, Point2D* out_wrist) {
-    out_wrist->x = 0.45; out_wrist->y = 0.72; out_wrist->confidence = 0.99f; out_wrist->is_valid = true;
-    out_elbow->x = 0.30; out_elbow->y = 0.72; out_elbow->confidence = 0.98f; out_elbow->is_valid = true;
+    out_wrist->x = 0.50; out_wrist->y = 0.70; out_wrist->confidence = 0.99f; out_wrist->is_valid = true;
+    out_elbow->x = 0.35; out_elbow->y = 0.70; out_elbow->confidence = 0.98f; out_elbow->is_valid = true;
     double angle_deg = 90.0;
     if (jitter > 0.0) {
         double r = ((double)rand() / (double)RAND_MAX) - 0.5;
         angle_deg += (r * jitter * 0.4);
     }
-    out_shoulder->x = 0.30;
+    out_shoulder->x = 0.35;
     out_shoulder->y = 0.55 + (sin(cycle_progress * 4.0 * M_PI) * 0.005);
     out_shoulder->confidence = 0.98f; out_shoulder->is_valid = true;
 }
