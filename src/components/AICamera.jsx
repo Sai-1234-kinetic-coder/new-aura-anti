@@ -220,6 +220,39 @@ export default function AICamera({
     };
   }, [initWebcam]);
 
+  // Keep canvas internal resolution in sync with video stream dimensions.
+  // Without this, the landmark coordinates (normalised 0–1) get mapped to stale
+  // canvas pixel dimensions, producing misplaced dots / artefacts on camera flip.
+  useEffect(() => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas) return;
+
+    const syncCanvasSize = () => {
+      const vw = video.videoWidth || video.clientWidth || 640;
+      const vh = video.videoHeight || video.clientHeight || 480;
+      if (canvas.width !== vw || canvas.height !== vh) {
+        canvas.width = vw;
+        canvas.height = vh;
+      }
+    };
+
+    // Fire when stream resolution changes (e.g. camera flip)
+    video.addEventListener('resize', syncCanvasSize);
+
+    // Also observe layout changes (e.g. orientation change on mobile)
+    let ro;
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(syncCanvasSize);
+      ro.observe(video);
+    }
+
+    return () => {
+      video.removeEventListener('resize', syncCanvasSize);
+      if (ro) ro.disconnect();
+    };
+  }, [cameraActive]);
+
   // Rep Completion Side-Effects
   const handleRepCompleted = useCallback((reps = 1) => {
     if (isProcessingRepRef.current) return;

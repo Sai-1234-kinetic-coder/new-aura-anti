@@ -45,7 +45,7 @@ export default function SettingsModal({ isOpen, onClose, onSettingsUpdated }) {
 
   if (!isOpen) return null;
 
-  // Save Gemini Key
+  // Save Gemini Key (does NOT test — user must click Test to validate)
   const handleSaveGeminiKey = () => {
     const trimmed = geminiKey.trim();
     if (!trimmed) {
@@ -54,14 +54,18 @@ export default function SettingsModal({ isOpen, onClose, onSettingsUpdated }) {
       toast.info("Gemini API key cleared. AuraFit will use built-in sports intelligence fallback.");
     } else {
       localStorage.setItem('aurafit_gemini_api_key', trimmed);
-      setKeyStatus('valid');
-      toast.success("Gemini API key saved! Live AI Coach is now fully active.");
-      audioSynth.playHydrationChime();
+      // Do NOT mark as 'valid' until the key has been actually tested
+      if (keyStatus !== 'valid') {
+        toast.warning("Key saved. Click 'Test Key' to verify it works before using AuraCoach.");
+      } else {
+        toast.success("Gemini API key saved! Live AI Coach is now fully active.");
+        audioSynth.playHydrationChime();
+      }
     }
     if (onSettingsUpdated) onSettingsUpdated();
   };
 
-  // Test Gemini Key Live
+  // Test Gemini Key Live — shows specific HTTP error for diagnosis
   const handleTestKey = async () => {
     const trimmed = geminiKey.trim();
     if (!trimmed) {
@@ -70,6 +74,7 @@ export default function SettingsModal({ isOpen, onClose, onSettingsUpdated }) {
     }
 
     setIsTestingKey(true);
+    setKeyStatus(null);
     try {
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${trimmed}`;
       const res = await fetch(endpoint, {
@@ -83,15 +88,34 @@ export default function SettingsModal({ isOpen, onClose, onSettingsUpdated }) {
       if (res.ok) {
         setKeyStatus('valid');
         localStorage.setItem('aurafit_gemini_api_key', trimmed);
-        toast.success("Connection Successful! Gemini 1.5 Flash is verified.");
+        toast.success("✅ Connection Successful! Gemini 1.5 Flash is verified and ready.");
         audioSynth.playLevelUp();
       } else {
         setKeyStatus('invalid');
-        toast.error("Invalid API Key or quota exhausted. Check your key.");
+        let reason = `HTTP ${res.status}`;
+        try {
+          const errData = await res.json();
+          const msg = errData?.error?.message || errData?.error?.status || '';
+          if (msg) reason += ` — ${msg}`;
+        } catch (_) {}
+
+        if (res.status === 400) {
+          toast.error(`❌ Bad Request (400): ${reason}. Check your key format — should start with "AIza…".`);
+        } else if (res.status === 401 || res.status === 403) {
+          toast.error(`❌ Permission Denied (${res.status}): Invalid key or API not enabled. Visit Google AI Studio to check your key.`);
+        } else if (res.status === 429) {
+          toast.error("⚠️ Quota Exceeded (429): Your Gemini free-tier quota is used up. Try again after midnight UTC or upgrade your plan.");
+        } else {
+          toast.error(`❌ Test failed (${reason}). Verify your key at https://aistudio.google.com/app/apikey`);
+        }
       }
     } catch (err) {
       setKeyStatus('invalid');
-      toast.error("Network error testing Gemini key: " + err.message);
+      if (err instanceof TypeError && err.message.includes('fetch')) {
+        toast.error("🌐 Network error: Cannot reach Google API. Check your internet connection and try again.");
+      } else {
+        toast.error("Network error testing Gemini key: " + err.message);
+      }
     } finally {
       setIsTestingKey(false);
     }
