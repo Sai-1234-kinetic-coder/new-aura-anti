@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">AuraFit</string>
+    <string name="title_activity_main">AuraFit</string>
+    <string name="package_name">com.aurafit.app</string>
+    <string name="custom_url_scheme">com.aurafit.app</string>
+</resources>
