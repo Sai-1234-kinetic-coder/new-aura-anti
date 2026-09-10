@@ -39,6 +39,9 @@ export default function AICamera({
   const animationFrameId = useRef(null);
   const holdTimerRef = useRef(null);
   const holdSecondsRef = useRef(0);
+  // Holds the active MediaStream so we can stop it even after the video
+  // element's DOM ref is cleared on unmount (which happens before cleanup runs).
+  const streamRef = useRef(null);
 
   // Exercise Selection
   const [exerciseType, setExerciseType] = useState('Squats');
@@ -130,10 +133,15 @@ export default function AICamera({
     }
 
     // Stop any previously attached stream tracks safely
-    if (videoRef.current && videoRef.current.srcObject) {
+    // Stop any previously attached stream tracks — use streamRef so this works
+    // even if videoRef.current has already been cleared (e.g. during camera flip).
+    if (streamRef.current) {
       try {
-        videoRef.current.srcObject.getTracks().forEach(track => track.stop());
+        streamRef.current.getTracks().forEach(track => track.stop());
       } catch (e) {}
+      streamRef.current = null;
+    }
+    if (videoRef.current && videoRef.current.srcObject) {
       videoRef.current.srcObject = null;
     }
 
@@ -167,6 +175,7 @@ export default function AICamera({
     }
 
     if (stream && videoRef.current) {
+      streamRef.current = stream;          // ← stored for reliable cleanup
       videoRef.current.srcObject = stream;
       videoRef.current.onloadedmetadata = async () => {
         if (canvasRef.current && videoRef.current) {
@@ -210,10 +219,14 @@ export default function AICamera({
   useEffect(() => {
     initWebcam();
     return () => {
-      if (videoRef.current && videoRef.current.srcObject) {
+      // streamRef holds the active MediaStream independently of the DOM ref.
+      // React clears videoRef.current BEFORE running cleanup, so checking
+      // videoRef.current here would always be null. streamRef stays valid.
+      if (streamRef.current) {
         try {
-          videoRef.current.srcObject.getTracks().forEach(track => track.stop());
+          streamRef.current.getTracks().forEach(track => track.stop());
         } catch (e) {}
+        streamRef.current = null;
       }
       if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
       if (holdTimerRef.current) clearInterval(holdTimerRef.current);
