@@ -1,0 +1,23 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0F172A" />
+      <stop offset="100%" stop-color="#020617" />
+    </linearGradient>
+    <linearGradient id="flameGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#10B981" />
+      <stop offset="50%" stop-color="#06B6D4" />
+      <stop offset="100%" stop-color="#3B82F6" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="15" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="128" fill="url(#bgGrad)" />
+  <circle cx="256" cy="256" r="180" fill="none" stroke="#10B981" stroke-width="6" opacity="0.25" />
+  <path d="M256 80 C260 180 370 220 370 320 C370 400 320 440 256 440 C192 440 142 400 142 320 C142 240 210 170 225 120 C235 150 255 190 275 200 C275 160 260 120 256 80 Z" 
+        fill="url(#flameGrad)" filter="url(#glow)" />
+  <path d="M256 240 C270 280 310 310 310 350 C310 390 285 410 256 410 C227 410 202 390 202 350 C202 315 235 285 245 260 C248 275 258 290 265 295 C265 275 258 255 256 240 Z" 
+        fill="#FFFFFF" opacity="0.9" />
+</svg>
