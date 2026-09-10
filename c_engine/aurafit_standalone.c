@@ -892,10 +892,10 @@ static const DemoPose DEMO_BENCHMARKS[DEMO_POSE_COUNT] = {
         .target_primary_angle_deg = 90.0,
         .target_secondary_angle_deg = 180.0,
         .angle_tolerance_deg = 10.0,
-        .target_joint_a = { .x = 0.38, .y = 0.50, .confidence = 1.0f, .is_valid = true },
-        .target_joint_b = { .x = 0.38, .y = 0.65, .confidence = 1.0f, .is_valid = true },
-        .target_joint_c = { .x = 0.38, .y = 0.80, .confidence = 1.0f, .is_valid = true },
-        .target_spine_ref = { .x = 0.70, .y = 0.50, .confidence = 1.0f, .is_valid = true },
+        .target_joint_a = { .x = 0.30, .y = 0.65, .confidence = 1.0f, .is_valid = true },
+        .target_joint_b = { .x = 0.45, .y = 0.65, .confidence = 1.0f, .is_valid = true },
+        .target_joint_c = { .x = 0.45, .y = 0.80, .confidence = 1.0f, .is_valid = true },
+        .target_spine_ref = { .x = 0.65, .y = 0.65, .confidence = 1.0f, .is_valid = true },
         .feedback_perfect = "95% Match - Perfect Form! 90° elbow depth with rigid core.",
         .feedback_high_angle = "Angle too open! Lower your chest further to hit 90° elbow flexion.",
         .feedback_low_angle = "Over-flexed! Avoid collapsing onto the floor; push through palms.",
@@ -908,10 +908,10 @@ static const DemoPose DEMO_BENCHMARKS[DEMO_POSE_COUNT] = {
         .target_primary_angle_deg = 165.0,
         .target_secondary_angle_deg = 180.0,
         .angle_tolerance_deg = 12.0,
-        .target_joint_a = { .x = 0.38, .y = 0.30, .confidence = 1.0f, .is_valid = true },
-        .target_joint_b = { .x = 0.38, .y = 0.55, .confidence = 1.0f, .is_valid = true },
-        .target_joint_c = { .x = 0.38, .y = 0.80, .confidence = 1.0f, .is_valid = true },
-        .target_spine_ref = { .x = 0.70, .y = 0.35, .confidence = 1.0f, .is_valid = true },
+        .target_joint_a = { .x = 0.41, .y = 0.505, .confidence = 1.0f, .is_valid = true },
+        .target_joint_b = { .x = 0.45, .y = 0.65, .confidence = 1.0f, .is_valid = true },
+        .target_joint_c = { .x = 0.45, .y = 0.80, .confidence = 1.0f, .is_valid = true },
+        .target_spine_ref = { .x = 0.66, .y = 0.505, .confidence = 1.0f, .is_valid = true },
         .feedback_perfect = "96% Match - Perfect Extension! Stable locked core and shoulders.",
         .feedback_high_angle = "Do not hyperextend elbows; maintain soft joint lockout.",
         .feedback_low_angle = "Complete full extension at top of rep before descending.",
@@ -924,10 +924,10 @@ static const DemoPose DEMO_BENCHMARKS[DEMO_POSE_COUNT] = {
         .target_primary_angle_deg = 85.0,
         .target_secondary_angle_deg = 70.0,
         .angle_tolerance_deg = 10.0,
-        .target_joint_a = { .x = 0.42, .y = 0.52, .confidence = 1.0f, .is_valid = true },
+        .target_joint_a = { .x = 0.28, .y = 0.70, .confidence = 1.0f, .is_valid = true },
         .target_joint_b = { .x = 0.52, .y = 0.68, .confidence = 1.0f, .is_valid = true },
         .target_joint_c = { .x = 0.52, .y = 0.90, .confidence = 1.0f, .is_valid = true },
-        .target_spine_ref = { .x = 0.40, .y = 0.28, .confidence = 1.0f, .is_valid = true },
+        .target_spine_ref = { .x = 0.28, .y = 0.70, .confidence = 1.0f, .is_valid = true },
         .feedback_perfect = "95% Match - Perfect Form! Thighs parallel to deck, neutral spine.",
         .feedback_high_angle = "Squat too shallow! Descend lower until knee angle reaches ~85°.",
         .feedback_low_angle = "Deep squat reached! Ensure knees do not cave inwards (valgus).",
@@ -940,10 +940,10 @@ static const DemoPose DEMO_BENCHMARKS[DEMO_POSE_COUNT] = {
         .target_primary_angle_deg = 170.0,
         .target_secondary_angle_deg = 90.0,
         .angle_tolerance_deg = 12.0,
-        .target_joint_a = { .x = 0.50, .y = 0.45, .confidence = 1.0f, .is_valid = true },
-        .target_joint_b = { .x = 0.51, .y = 0.68, .confidence = 1.0f, .is_valid = true },
-        .target_joint_c = { .x = 0.51, .y = 0.90, .confidence = 1.0f, .is_valid = true },
-        .target_spine_ref = { .x = 0.50, .y = 0.20, .confidence = 1.0f, .is_valid = true },
+        .target_joint_a = { .x = 0.48, .y = 0.44, .confidence = 1.0f, .is_valid = true },
+        .target_joint_b = { .x = 0.52, .y = 0.68, .confidence = 1.0f, .is_valid = true },
+        .target_joint_c = { .x = 0.52, .y = 0.90, .confidence = 1.0f, .is_valid = true },
+        .target_spine_ref = { .x = 0.48, .y = 0.44, .confidence = 1.0f, .is_valid = true },
         .feedback_perfect = "97% Match - Solid standing lockout. Ready for next repetition.",
         .feedback_high_angle = "Avoid knee hyperextension.",
         .feedback_low_angle = "Stand up completely to complete full rep lockout.",
@@ -956,10 +956,10 @@ static const DemoPose DEMO_BENCHMARKS[DEMO_POSE_COUNT] = {
         .target_primary_angle_deg = 90.0,
         .target_secondary_angle_deg = 180.0,
         .angle_tolerance_deg = 8.0,
-        .target_joint_a = { .x = 0.30, .y = 0.55, .confidence = 1.0f, .is_valid = true },
-        .target_joint_b = { .x = 0.30, .y = 0.72, .confidence = 1.0f, .is_valid = true },
-        .target_joint_c = { .x = 0.45, .y = 0.72, .confidence = 1.0f, .is_valid = true },
-        .target_spine_ref = { .x = 0.60, .y = 0.55, .confidence = 1.0f, .is_valid = true },
+        .target_joint_a = { .x = 0.35, .y = 0.55, .confidence = 1.0f, .is_valid = true },
+        .target_joint_b = { .x = 0.35, .y = 0.70, .confidence = 1.0f, .is_valid = true },
+        .target_joint_c = { .x = 0.50, .y = 0.70, .confidence = 1.0f, .is_valid = true },
+        .target_spine_ref = { .x = 0.65, .y = 0.55, .confidence = 1.0f, .is_valid = true },
         .feedback_perfect = "95% Match - Perfect Form! Rigid abdominal brace & straight spine.",
         .feedback_high_angle = "Elbow angle too obtuse! Position elbows directly under shoulders.",
         .feedback_low_angle = "Elbow angle compressed! Maintain 90° forearm base.",
@@ -1049,14 +1049,19 @@ static void demo_pose_evaluate_form(const DemoPose* demo,
     if (user_spine_ref.is_valid && demo->target_secondary_angle_deg > 0.0) {
         has_secondary = true;
         report->target_secondary_angle_deg = demo->target_secondary_angle_deg;
-        report->real_time_secondary_angle_deg = calculate_joint_angle_deg(user_joint_a, user_spine_ref, user_joint_c);
+
+        double hip_y_dev = fabs(user_spine_ref.y - user_joint_a.y);
+        double sec_angle = 180.0 - (hip_y_dev / 0.15) * 45.0;
+        if (sec_angle < 90.0) sec_angle = 90.0;
+        if (sec_angle > 180.0) sec_angle = 180.0;
+        report->real_time_secondary_angle_deg = sec_angle;
         report->secondary_angular_delta_deg = report->real_time_secondary_angle_deg - demo->target_secondary_angle_deg;
         double abs_sec_delta = fabs(report->secondary_angular_delta_deg);
 
-        if (abs_sec_delta <= 15.0) {
-            secondary_score = 100.0 - (abs_sec_delta / 15.0) * 10.0;
+        if (abs_sec_delta <= 10.0) {
+            secondary_score = 100.0 - (abs_sec_delta / 10.0) * 8.0;
         } else {
-            secondary_score = 90.0 - ((abs_sec_delta - 15.0) / 35.0) * 90.0;
+            secondary_score = 92.0 - ((abs_sec_delta - 10.0) / 35.0) * 92.0;
         }
         if (secondary_score < 0.0) secondary_score = 0.0;
     }
