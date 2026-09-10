@@ -149,7 +149,7 @@ export default function Dashboard({
       <div className="glass-card" style={{
         padding: '24px 28px',
         borderLeft: '4px solid #10b981',
-        background: 'linear-gradient(135deg, #ffffff, #f8fafc)',
+        background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.95), rgba(16, 185, 129, 0.08))',
         position: 'relative',
         overflow: 'hidden'
       }}>
@@ -164,29 +164,29 @@ export default function Dashboard({
               </span>
             </div>
             <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0 }}>
-              Your cognitive and physical systems are firing. Active streak: <strong style={{ color: '#d97706' }}>{streakDays} days 🔥 (1.5x Multiplier)</strong>
+              Your cognitive and physical systems are firing. Active streak: <strong style={{ color: '#fbbf24' }}>{streakDays} days 🔥 (1.5x Multiplier)</strong>
             </p>
           </div>
 
           {/* Aura Level Pill Card */}
           <div style={{
-            background: 'var(--bg-inset)',
-            border: '1px solid var(--border-color)',
+            background: '#0b0f19',
+            border: '1px solid rgba(245, 158, 11, 0.3)',
             borderRadius: 'var(--radius-md)',
             padding: '12px 18px',
             minWidth: '220px'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-              <span style={{ fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#d97706', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <Sparkles size={13} /> Aura Level {currentLevel}
               </span>
-              <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-primary)' }}>
+              <span style={{ fontSize: '12px', fontWeight: '800', color: '#f8fafc' }}>
                 {totalXp} XP
               </span>
             </div>
 
             {/* Level Bar */}
-            <div style={{ height: '6px', background: '#e2e8f0', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
+            <div style={{ height: '6px', background: '#1e293b', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
               <div style={{
                 height: '100%',
                 width: `${levelProgressPct}%`,
@@ -222,30 +222,30 @@ export default function Dashboard({
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px' }}>
-          <div style={{ background: 'var(--bg-inset)', padding: '12px', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid #10b981' }}>
+          <div style={{ background: '#0b0f19', padding: '12px', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid #10b981' }}>
             <span style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Current Weight</span>
             <div style={{ fontSize: '16px', fontWeight: '800', color: '#10b981' }}>
               {metabolicSnapshot?.weightKg || 72} kg
             </div>
           </div>
 
-          <div style={{ background: 'var(--bg-inset)', padding: '12px', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid #06b6d4' }}>
+          <div style={{ background: '#0b0f19', padding: '12px', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid #06b6d4' }}>
             <span style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Height</span>
             <div style={{ fontSize: '16px', fontWeight: '800', color: '#06b6d4' }}>
               {metabolicSnapshot?.heightCm || 175} cm
             </div>
           </div>
 
-          <div style={{ background: 'var(--bg-inset)', padding: '12px', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid #d97706' }}>
+          <div style={{ background: '#0b0f19', padding: '12px', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid #f59e0b' }}>
             <span style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Daily Calorie Target</span>
-            <div style={{ fontSize: '16px', fontWeight: '800', color: '#d97706' }}>
+            <div style={{ fontSize: '16px', fontWeight: '800', color: '#f59e0b' }}>
               {metabolicSnapshot?.goal === 'hypertrophy' ? '~2,750 kcal' : '~2,150 kcal'}
             </div>
           </div>
 
-          <div style={{ background: 'var(--bg-inset)', padding: '12px', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid #9333ea' }}>
+          <div style={{ background: '#0b0f19', padding: '12px', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid #a855f7' }}>
             <span style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Primary Goal</span>
-            <div style={{ fontSize: '14px', fontWeight: '800', color: '#9333ea' }}>
+            <div style={{ fontSize: '14px', fontWeight: '800', color: '#a855f7' }}>
               {metabolicSnapshot?.goal ? metabolicSnapshot.goal.toUpperCase().replace('_', ' ') : 'FAT LOSS'}
             </div>
           </div>
@@ -258,15 +258,15 @@ export default function Dashboard({
         {/* Metric 1: AI Vision Reps */}
         <div className="glass-card" style={{ padding: '20px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-            <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600' }}>AI Camera Reps</span>
-            <Flame size={18} color="#10b981" />
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600' }}>AI Form Reps</span>
+            <Camera size={18} color="#10b981" />
           </div>
           <div style={{ fontSize: '28px', fontWeight: '900', color: '#10b981' }}>
-            {aiReps} <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>/ {aiRepTarget}</span>
+            {squatReps} <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>reps</span>
           </div>
-          <div style={{ height: '6px', background: '#e2e8f0', borderRadius: 'var(--radius-full)', margin: '8px 0', overflow: 'hidden' }}>
-            <div style={{ height: '100%', width: `${Math.min(100, Math.round((aiReps / aiRepTarget) * 100))}%`, background: '#10b981' }} />
-          </div>
+          <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+            Pose accuracy score: <strong style={{ color: '#10b981' }}>94% form validity</strong>
+          </p>
           <button
             onClick={onLaunchArena}
             className="btn btn-primary"
@@ -285,7 +285,7 @@ export default function Dashboard({
           <div style={{ fontSize: '28px', fontWeight: '900', color: '#06b6d4' }}>
             {waterAmount} <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>/ {waterTarget} L</span>
           </div>
-          <div style={{ height: '6px', background: '#e2e8f0', borderRadius: 'var(--radius-full)', margin: '8px 0', overflow: 'hidden' }}>
+          <div style={{ height: '6px', background: '#1e293b', borderRadius: 'var(--radius-full)', margin: '8px 0', overflow: 'hidden' }}>
             <div style={{ height: '100%', width: `${Math.min(100, Math.round((waterAmount / waterTarget) * 100))}%`, background: '#06b6d4' }} />
           </div>
           <button
@@ -301,13 +301,13 @@ export default function Dashboard({
         <div className="glass-card" style={{ padding: '20px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
             <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600' }}>Active Footsteps</span>
-            <Footprints size={18} color="#d97706" />
+            <Footprints size={18} color="#f59e0b" />
           </div>
-          <div style={{ fontSize: '28px', fontWeight: '900', color: '#d97706' }}>
+          <div style={{ fontSize: '28px', fontWeight: '900', color: '#f59e0b' }}>
             {steps.toLocaleString()} <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>/ {stepTarget.toLocaleString()}</span>
           </div>
-          <div style={{ height: '6px', background: '#e2e8f0', borderRadius: 'var(--radius-full)', margin: '8px 0', overflow: 'hidden' }}>
-            <div style={{ height: '100%', width: `${Math.min(100, Math.round((steps / stepTarget) * 100))}%`, background: '#d97706' }} />
+          <div style={{ height: '6px', background: '#1e293b', borderRadius: 'var(--radius-full)', margin: '8px 0', overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${Math.min(100, Math.round((steps / stepTarget) * 100))}%`, background: '#f59e0b' }} />
           </div>
           <button
             onClick={handleAddSteps}
@@ -457,7 +457,7 @@ export default function Dashboard({
               <div
                 key={w.id || idx}
                 style={{
-                  background: 'var(--bg-inset)',
+                  background: '#0b0f19',
                   border: '1px solid var(--border-color)',
                   borderRadius: 'var(--radius-sm)',
                   padding: '10px 14px',

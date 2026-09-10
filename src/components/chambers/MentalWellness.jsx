@@ -157,7 +157,7 @@ export default function MentalWellness({ onPointsEarned }) {
       <div className="glass-card" style={{
         padding: '24px 28px',
         borderLeft: '4px solid #ec4899',
-        background: 'linear-gradient(135deg, #ffffff, #f8fafc)',
+        background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.95), rgba(236, 72, 153, 0.08))',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
@@ -532,7 +532,7 @@ export default function MentalWellness({ onPointsEarned }) {
                   </div>
 
                   {/* Finger Alignment Instructions */}
-                  <div style={{ background: 'var(--bg-inset)', padding: '12px', borderRadius: 'var(--radius-sm)', marginBottom: '12px' }}>
+                  <div style={{ background: '#0b0f19', padding: '12px', borderRadius: 'var(--radius-sm)', marginBottom: '12px' }}>
                     <span style={{ fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block', marginBottom: '6px' }}>
                       Hand Alignment Guide:
                     </span>
@@ -574,12 +574,12 @@ export default function MentalWellness({ onPointsEarned }) {
               zIndex: 9999,
               maxWidth: '360px',
               width: 'calc(100% - 48px)',
-              background: '#ffffff',
+              background: 'rgba(15, 23, 42, 0.95)',
               backdropFilter: 'blur(16px)',
               border: `1px solid ${selectedMudra.colorAccent}`,
               borderRadius: 'var(--radius-md)',
               padding: '20px',
-              boxShadow: 'var(--shadow-card)',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.8)',
               animation: 'fadeInUp 0.3s ease'
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>

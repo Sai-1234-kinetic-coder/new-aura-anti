@@ -37,7 +37,7 @@ export default class ErrorBoundary extends React.Component {
             padding: '32px',
             textAlign: 'center',
             border: '1px solid rgba(244, 63, 94, 0.4)',
-            background: '#ffffff'
+            background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.95), rgba(244, 63, 94, 0.1))'
           }}>
             <div style={{
               width: '56px',
@@ -53,7 +53,7 @@ export default class ErrorBoundary extends React.Component {
               <ShieldAlert size={32} />
             </div>
 
-            <h3 style={{ fontSize: '20px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '8px' }}>
+            <h3 style={{ fontSize: '20px', fontWeight: '800', color: '#f8fafc', marginBottom: '8px' }}>
               Chamber System Protection Active
             </h3>
 

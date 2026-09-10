@@ -33,8 +33,8 @@ export default function DepartmentWars({
       <div className="glass-card glow-cyan" style={{
         padding: '28px',
         borderRadius: 'var(--radius-lg)',
-        background: 'linear-gradient(135deg, #ffffff, #f8fafc)',
-        border: '1px solid var(--border-color)'
+        background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.95), rgba(15, 23, 42, 0.95))',
+        border: '1px solid rgba(56, 189, 248, 0.3)'
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
           <div>
@@ -42,7 +42,7 @@ export default function DepartmentWars({
               <span className="badge badge-streak">🔥 Live Standings</span>
               <span className="badge badge-dept">Realtime Sync</span>
             </div>
-            <h2 style={{ fontSize: '26px', color: 'var(--text-primary)', margin: '0 0 6px 0' }}>
+            <h2 style={{ fontSize: '26px', color: '#fff', margin: '0 0 6px 0' }}>
               Campus Department Wars 🏆
             </h2>
             <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '14px', maxWidth: '540px' }}>
@@ -67,7 +67,7 @@ export default function DepartmentWars({
         {/* Department Standings Column */}
         <div className="glass-card" style={{ padding: '24px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <h3 style={{ fontSize: '18px', color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h3 style={{ fontSize: '18px', color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Trophy size={20} color="#fbbf24" />
               Branch Rankings
             </h3>
@@ -84,7 +84,7 @@ export default function DepartmentWars({
                 <div 
                   key={item.department}
                   style={{
-                    background: isUserDept ? 'rgba(16, 185, 129, 0.08)' : 'var(--bg-inset)',
+                    background: isUserDept ? 'rgba(16, 185, 129, 0.08)' : '#0b0f19',
                     padding: '16px',
                     borderRadius: 'var(--radius-md)',
                     border: isUserDept ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid var(--border-color)',
@@ -97,8 +97,8 @@ export default function DepartmentWars({
                         width: '28px',
                         height: '28px',
                         borderRadius: '50%',
-                        background: index === 0 ? '#fbbf24' : index === 1 ? '#94a3b8' : index === 2 ? '#d97706' : '#e2e8f0',
-                        color: index <= 2 ? '#000' : '#0f172a',
+                        background: index === 0 ? '#fbbf24' : index === 1 ? '#94a3b8' : index === 2 ? '#d97706' : '#1e293b',
+                        color: index <= 2 ? '#000' : '#fff',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -108,7 +108,7 @@ export default function DepartmentWars({
                         {index === 0 ? <Crown size={15} /> : `#${index + 1}`}
                       </div>
                       <div>
-                        <span style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                        <span style={{ fontSize: '16px', fontWeight: '800', color: '#fff' }}>
                           {item.department}
                         </span>
                         {isUserDept && (
@@ -118,7 +118,7 @@ export default function DepartmentWars({
                     </div>
 
                     <div style={{ textAlign: 'right' }}>
-                      <span style={{ fontSize: '18px', fontWeight: '900', color: index === 0 ? '#d97706' : '#10b981' }}>
+                      <span style={{ fontSize: '18px', fontWeight: '900', color: index === 0 ? '#fbbf24' : '#10b981' }}>
                         {item.points}
                       </span>
                       <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '4px' }}>XP</span>
@@ -126,7 +126,7 @@ export default function DepartmentWars({
                   </div>
 
                   {/* Animated Progress Bar */}
-                  <div style={{ width: '100%', height: '7px', background: '#e2e8f0', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
+                  <div style={{ width: '100%', height: '7px', background: '#1e293b', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
                     <div 
                       style={{
                         width: `${Math.max(sharePercent, 8)}%`,
@@ -150,7 +150,7 @@ export default function DepartmentWars({
         {/* Top Campus Athletes Spotlight */}
         <div className="glass-card" style={{ padding: '24px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <h3 style={{ fontSize: '18px', color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h3 style={{ fontSize: '18px', color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Flame size={20} color="#f43f5e" />
               Campus Top Athletes
             </h3>
@@ -168,7 +168,7 @@ export default function DepartmentWars({
               <div 
                 key={athlete.id || i}
                 style={{
-                  background: 'var(--bg-inset)',
+                  background: '#0b0f19',
                   padding: '12px 14px',
                   borderRadius: 'var(--radius-sm)',
                   border: '1px solid var(--border-color)',
@@ -182,13 +182,13 @@ export default function DepartmentWars({
                     width: '32px',
                     height: '32px',
                     borderRadius: '8px',
-                    background: 'linear-gradient(135deg, #e2e8f0, #cbd5e1)',
+                    background: 'linear-gradient(135deg, #1e293b, #334155)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontWeight: 'bold',
                     fontSize: '13px',
-                    color: '#0284c7'
+                    color: '#38bdf8'
                   }}>
                     {athlete.name[0]}
                   </div>

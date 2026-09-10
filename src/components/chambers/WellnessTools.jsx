@@ -199,7 +199,7 @@ export default function WellnessTools() {
       <div className="glass-card" style={{
         padding: '24px 28px',
         borderLeft: '4px solid #f59e0b',
-        background: 'linear-gradient(135deg, #ffffff, #f8fafc)',
+        background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.95), rgba(245, 158, 11, 0.08))',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
@@ -646,9 +646,9 @@ export default function WellnessTools() {
                   </div>
                   <div style={{ maxHeight: '140px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     {swLaps.map((lap, idx) => (
-                      <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 12px', background: 'var(--bg-inset)', borderRadius: '4px', fontSize: '13px' }}>
+                      <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 12px', background: '#0b0f19', borderRadius: '4px', fontSize: '13px' }}>
                         <span style={{ color: 'var(--text-muted)' }}>Lap {swLaps.length - idx}</span>
-                        <strong style={{ color: '#0284c7' }}>{lap}</strong>
+                        <strong style={{ color: '#38bdf8' }}>{lap}</strong>
                       </div>
                     ))}
                   </div>
@@ -669,7 +669,7 @@ export default function WellnessTools() {
           {/* Circadian Meal Window */}
           <div className="glass-card" style={{ padding: '24px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
-              <Coffee size={18} color="#d97706" />
+              <Coffee size={18} color="#f59e0b" />
               <h3 style={{ fontSize: '16px', fontWeight: '700', margin: 0 }}>Circadian Intermittent Window</h3>
             </div>
             
@@ -677,12 +677,12 @@ export default function WellnessTools() {
               Aligning nutrient intake with daylight cycles enhances insulin sensitivity, cellular autophagy, and resting sleep architecture.
             </p>
 
-            <div style={{ marginTop: '16px', background: 'var(--bg-inset)', padding: '16px', borderRadius: 'var(--radius-sm)' }}>
+            <div style={{ marginTop: '16px', background: '#0b0f19', padding: '16px', borderRadius: 'var(--radius-sm)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '6px' }}>
                 <span style={{ color: 'var(--text-muted)' }}>16:8 Fasting Window</span>
                 <strong style={{ color: '#10b981' }}>{fastingHoursCompleted}h completed</strong>
               </div>
-              <div style={{ height: '8px', background: '#e2e8f0', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
+              <div style={{ height: '8px', background: '#1e293b', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
                 <div style={{ height: '100%', width: `${(fastingHoursCompleted / fastingTotalHours) * 100}%`, background: '#10b981' }} />
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--text-muted)', marginTop: '8px' }}>
@@ -700,14 +700,14 @@ export default function WellnessTools() {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '12px' }}>
-              <div style={{ padding: '12px', background: 'var(--bg-inset)', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid #06b6d4' }}>
+              <div style={{ padding: '12px', background: '#0b0f19', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid #06b6d4' }}>
                 <strong style={{ color: '#06b6d4', display: 'block', marginBottom: '2px' }}>Pre-Workout (30–60 mins prior)</strong>
                 <p style={{ color: 'var(--text-muted)', margin: 0 }}>
                   Easily digestible low-fat carbs + light protein (e.g. banana with rice cakes or whey isolate) to prime muscle glycogen.
                 </p>
               </div>
 
-              <div style={{ padding: '12px', background: 'var(--bg-inset)', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid #10b981' }}>
+              <div style={{ padding: '12px', background: '#0b0f19', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid #10b981' }}>
                 <strong style={{ color: '#10b981', display: 'block', marginBottom: '2px' }}>Post-Workout (Within 45 mins)</strong>
                 <p style={{ color: 'var(--text-muted)', margin: 0 }}>
                   25–35g high-leucine complete protein + fast-clearing carbs to halt muscular catabolism and trigger mTOR protein synthesis.
@@ -719,25 +719,25 @@ export default function WellnessTools() {
           {/* Micronutrient Awareness */}
           <div className="glass-card" style={{ padding: '24px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
-              <Sparkles size={18} color="#9333ea" />
+              <Sparkles size={18} color="#a855f7" />
               <h3 style={{ fontSize: '16px', fontWeight: '700', margin: 0 }}>Essential Athletic Micronutrients</h3>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '11px' }}>
-              <div style={{ padding: '10px', background: 'var(--bg-inset)', borderRadius: 'var(--radius-sm)' }}>
-                <strong style={{ color: '#0284c7', display: 'block' }}>Magnesium Glycinate</strong>
+              <div style={{ padding: '10px', background: '#0b0f19', borderRadius: 'var(--radius-sm)' }}>
+                <strong style={{ color: '#38bdf8', display: 'block' }}>Magnesium Glycinate</strong>
                 <span style={{ color: 'var(--text-muted)' }}>Neuromuscular relaxation & deep REM restorative sleep</span>
               </div>
-              <div style={{ padding: '10px', background: 'var(--bg-inset)', borderRadius: 'var(--radius-sm)' }}>
-                <strong style={{ color: '#d97706', display: 'block' }}>Electrolyte Sodium/Potassium</strong>
+              <div style={{ padding: '10px', background: '#0b0f19', borderRadius: 'var(--radius-sm)' }}>
+                <strong style={{ color: '#fbbf24', display: 'block' }}>Electrolyte Sodium/Potassium</strong>
                 <span style={{ color: 'var(--text-muted)' }}>Cellular fluid osmolarity and neuromuscular firing</span>
               </div>
-              <div style={{ padding: '10px', background: 'var(--bg-inset)', borderRadius: 'var(--radius-sm)' }}>
+              <div style={{ padding: '10px', background: '#0b0f19', borderRadius: 'var(--radius-sm)' }}>
                 <strong style={{ color: '#10b981', display: 'block' }}>Vitamin D3 + K2</strong>
                 <span style={{ color: 'var(--text-muted)' }}>Bone calcium absorption & endocrine hormonal output</span>
               </div>
-              <div style={{ padding: '10px', background: 'var(--bg-inset)', borderRadius: 'var(--radius-sm)' }}>
-                <strong style={{ color: '#e11d48', display: 'block' }}>Zinc Picolinate</strong>
+              <div style={{ padding: '10px', background: '#0b0f19', borderRadius: 'var(--radius-sm)' }}>
+                <strong style={{ color: '#f43f5e', display: 'block' }}>Zinc Picolinate</strong>
                 <span style={{ color: 'var(--text-muted)' }}>Immune resistance & enzymatic muscle repair</span>
               </div>
             </div>
