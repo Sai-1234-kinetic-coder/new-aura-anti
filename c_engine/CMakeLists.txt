@@ -8,6 +8,7 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 add_executable(aurafit_modular
     main.c
     aurafit_app.c
+    demo_pose.c
     vector_math.c
     spatial_matrix.c
     alert_queue.c

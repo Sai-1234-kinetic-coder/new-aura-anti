@@ -206,7 +206,8 @@ typedef enum {
     EXERCISE_BICEP_CURL = 0,
     EXERCISE_SQUAT,
     EXERCISE_SHOULDER_PRESS,
-    EXERCISE_PUSHUP
+    EXERCISE_PUSHUP,
+    EXERCISE_PLANK
 } ExerciseType;
 
 typedef enum {
@@ -216,6 +217,55 @@ typedef enum {
     REP_PHASE_CONCENTRIC,
     REP_PHASE_COMPLETED
 } RepPhase;
+
+/* 1.7 Reference Demo Pose Benchmark Structures */
+typedef enum {
+    DEMO_POSE_PUSHUP_BOTTOM = 0,
+    DEMO_POSE_PUSHUP_TOP,
+    DEMO_POSE_SQUAT_DEPTH,
+    DEMO_POSE_SQUAT_STANDING,
+    DEMO_POSE_PLANK_HOLD,
+    DEMO_POSE_BICEP_PEAK,
+    DEMO_POSE_COUNT
+} DemoPoseID;
+
+typedef struct {
+    DemoPoseID id;
+    char exercise_name[32];
+    char phase_name[48];
+    double target_primary_angle_deg;
+    double target_secondary_angle_deg;
+    double angle_tolerance_deg;
+    Point2D target_joint_a;
+    Point2D target_joint_b;
+    Point2D target_joint_c;
+    Point2D target_spine_ref;
+    char feedback_perfect[96];
+    char feedback_high_angle[96];
+    char feedback_low_angle[96];
+    char feedback_misaligned[96];
+} DemoPose;
+
+typedef struct {
+    DemoPoseID demo_id;
+    char exercise_name[32];
+    char phase_name[48];
+    double target_primary_angle_deg;
+    double real_time_primary_angle_deg;
+    double primary_angular_delta_deg;
+    double target_secondary_angle_deg;
+    double real_time_secondary_angle_deg;
+    double secondary_angular_delta_deg;
+    double euclidean_distance_a;
+    double euclidean_distance_b;
+    double euclidean_distance_c;
+    double avg_euclidean_distance;
+    double angle_accuracy_pct;
+    double coordinate_accuracy_pct;
+    double composite_accuracy_pct;
+    char guidance_message[128];
+    bool is_form_acceptable;
+} FormAccuracyReport;
 
 typedef struct {
     double extension_threshold_deg;
@@ -247,6 +297,13 @@ typedef struct {
 
     double live_form_score_pct;
     double live_velocity_deg_per_sec;
+
+    /* Demo Pose & Form Accuracy Integration */
+    const DemoPose* active_demo_pose;
+    FormAccuracyReport last_form_report;
+    Point2D last_joint_a;
+    Point2D last_joint_b;
+    Point2D last_joint_c;
 
     AlertQueue* alert_queue;
     RepHistoryList* history;
@@ -825,7 +882,275 @@ void fatigue_evaluate_and_adjust(const FatigueInputTelemetry* inputs,
     }
 }
 
-/* --- 2.6 Exercise Pose State Machine Tracker --- */
+/* --- 2.6 Reference Demo Pose System & Form Accuracy Engine --- */
+
+static const DemoPose DEMO_BENCHMARKS[DEMO_POSE_COUNT] = {
+    {
+        .id = DEMO_POSE_PUSHUP_BOTTOM,
+        .exercise_name = "Pushup",
+        .phase_name = "Bottom Inflection (Chest to Floor)",
+        .target_primary_angle_deg = 90.0,
+        .target_secondary_angle_deg = 180.0,
+        .angle_tolerance_deg = 10.0,
+        .target_joint_a = { .x = 0.38, .y = 0.50, .confidence = 1.0f, .is_valid = true },
+        .target_joint_b = { .x = 0.38, .y = 0.65, .confidence = 1.0f, .is_valid = true },
+        .target_joint_c = { .x = 0.38, .y = 0.80, .confidence = 1.0f, .is_valid = true },
+        .target_spine_ref = { .x = 0.70, .y = 0.50, .confidence = 1.0f, .is_valid = true },
+        .feedback_perfect = "95% Match - Perfect Form! 90° elbow depth with rigid core.",
+        .feedback_high_angle = "Angle too open! Lower your chest further to hit 90° elbow flexion.",
+        .feedback_low_angle = "Over-flexed! Avoid collapsing onto the floor; push through palms.",
+        .feedback_misaligned = "Lower your hips to match Demo Pose straight spine alignment."
+    },
+    {
+        .id = DEMO_POSE_PUSHUP_TOP,
+        .exercise_name = "Pushup",
+        .phase_name = "Top Extension (Arms Extended)",
+        .target_primary_angle_deg = 165.0,
+        .target_secondary_angle_deg = 180.0,
+        .angle_tolerance_deg = 12.0,
+        .target_joint_a = { .x = 0.38, .y = 0.30, .confidence = 1.0f, .is_valid = true },
+        .target_joint_b = { .x = 0.38, .y = 0.55, .confidence = 1.0f, .is_valid = true },
+        .target_joint_c = { .x = 0.38, .y = 0.80, .confidence = 1.0f, .is_valid = true },
+        .target_spine_ref = { .x = 0.70, .y = 0.35, .confidence = 1.0f, .is_valid = true },
+        .feedback_perfect = "96% Match - Perfect Extension! Stable locked core and shoulders.",
+        .feedback_high_angle = "Do not hyperextend elbows; maintain soft joint lockout.",
+        .feedback_low_angle = "Complete full extension at top of rep before descending.",
+        .feedback_misaligned = "Hips sagging! Tighten glutes to maintain straight plank line."
+    },
+    {
+        .id = DEMO_POSE_SQUAT_DEPTH,
+        .exercise_name = "Squat",
+        .phase_name = "Parallel Depth (Hip Crease at Knee)",
+        .target_primary_angle_deg = 85.0,
+        .target_secondary_angle_deg = 70.0,
+        .angle_tolerance_deg = 10.0,
+        .target_joint_a = { .x = 0.42, .y = 0.52, .confidence = 1.0f, .is_valid = true },
+        .target_joint_b = { .x = 0.52, .y = 0.68, .confidence = 1.0f, .is_valid = true },
+        .target_joint_c = { .x = 0.52, .y = 0.90, .confidence = 1.0f, .is_valid = true },
+        .target_spine_ref = { .x = 0.40, .y = 0.28, .confidence = 1.0f, .is_valid = true },
+        .feedback_perfect = "95% Match - Perfect Form! Thighs parallel to deck, neutral spine.",
+        .feedback_high_angle = "Squat too shallow! Descend lower until knee angle reaches ~85°.",
+        .feedback_low_angle = "Deep squat reached! Ensure knees do not cave inwards (valgus).",
+        .feedback_misaligned = "Chest collapsing forward! Elevate torso to match Demo Pose."
+    },
+    {
+        .id = DEMO_POSE_SQUAT_STANDING,
+        .exercise_name = "Squat",
+        .phase_name = "Standing Neutral Lockout",
+        .target_primary_angle_deg = 170.0,
+        .target_secondary_angle_deg = 90.0,
+        .angle_tolerance_deg = 12.0,
+        .target_joint_a = { .x = 0.50, .y = 0.45, .confidence = 1.0f, .is_valid = true },
+        .target_joint_b = { .x = 0.51, .y = 0.68, .confidence = 1.0f, .is_valid = true },
+        .target_joint_c = { .x = 0.51, .y = 0.90, .confidence = 1.0f, .is_valid = true },
+        .target_spine_ref = { .x = 0.50, .y = 0.20, .confidence = 1.0f, .is_valid = true },
+        .feedback_perfect = "97% Match - Solid standing lockout. Ready for next repetition.",
+        .feedback_high_angle = "Avoid knee hyperextension.",
+        .feedback_low_angle = "Stand up completely to complete full rep lockout.",
+        .feedback_misaligned = "Weight off balance. Distribute evenly across midfoot."
+    },
+    {
+        .id = DEMO_POSE_PLANK_HOLD,
+        .exercise_name = "Plank",
+        .phase_name = "Isometric Core Hold",
+        .target_primary_angle_deg = 90.0,
+        .target_secondary_angle_deg = 180.0,
+        .angle_tolerance_deg = 8.0,
+        .target_joint_a = { .x = 0.30, .y = 0.55, .confidence = 1.0f, .is_valid = true },
+        .target_joint_b = { .x = 0.30, .y = 0.72, .confidence = 1.0f, .is_valid = true },
+        .target_joint_c = { .x = 0.45, .y = 0.72, .confidence = 1.0f, .is_valid = true },
+        .target_spine_ref = { .x = 0.60, .y = 0.55, .confidence = 1.0f, .is_valid = true },
+        .feedback_perfect = "95% Match - Perfect Form! Rigid abdominal brace & straight spine.",
+        .feedback_high_angle = "Elbow angle too obtuse! Position elbows directly under shoulders.",
+        .feedback_low_angle = "Elbow angle compressed! Maintain 90° forearm base.",
+        .feedback_misaligned = "Lower your hips to match Demo Pose straight spine alignment."
+    },
+    {
+        .id = DEMO_POSE_BICEP_PEAK,
+        .exercise_name = "Bicep Curl",
+        .phase_name = "Peak Concentric Contraction",
+        .target_primary_angle_deg = 45.0,
+        .target_secondary_angle_deg = 0.0,
+        .angle_tolerance_deg = 12.0,
+        .target_joint_a = { .x = 0.50, .y = 0.30, .confidence = 1.0f, .is_valid = true },
+        .target_joint_b = { .x = 0.50, .y = 0.55, .confidence = 1.0f, .is_valid = true },
+        .target_joint_c = { .x = 0.50, .y = 0.35, .confidence = 1.0f, .is_valid = true },
+        .target_spine_ref = { .x = 0.50, .y = 0.60, .confidence = 1.0f, .is_valid = true },
+        .feedback_perfect = "95% Match - Perfect Form! Peak bicep squeeze achieved.",
+        .feedback_high_angle = "Curl higher! Contract forearm closer to shoulder.",
+        .feedback_low_angle = "Over-curling into shoulder flexion! Keep elbows pinned to ribs.",
+        .feedback_misaligned = "Upper body swinging! Stabilize torso and engage core."
+    }
+};
+
+static const DemoPose* demo_pose_get_benchmark(DemoPoseID id) {
+    if (id < 0 || id >= DEMO_POSE_COUNT) return &DEMO_BENCHMARKS[DEMO_POSE_PUSHUP_BOTTOM];
+    return &DEMO_BENCHMARKS[id];
+}
+
+static const DemoPose* demo_pose_get_by_exercise(const char* exercise_name, bool is_inflection_phase) {
+    if (!exercise_name) return &DEMO_BENCHMARKS[DEMO_POSE_PUSHUP_BOTTOM];
+    if (strstr(exercise_name, "Pushup") || strstr(exercise_name, "pushup") || strstr(exercise_name, "Push-up")) {
+        return is_inflection_phase ? &DEMO_BENCHMARKS[DEMO_POSE_PUSHUP_BOTTOM] : &DEMO_BENCHMARKS[DEMO_POSE_PUSHUP_TOP];
+    }
+    if (strstr(exercise_name, "Squat") || strstr(exercise_name, "squat")) {
+        return is_inflection_phase ? &DEMO_BENCHMARKS[DEMO_POSE_SQUAT_DEPTH] : &DEMO_BENCHMARKS[DEMO_POSE_SQUAT_STANDING];
+    }
+    if (strstr(exercise_name, "Plank") || strstr(exercise_name, "plank")) {
+        return &DEMO_BENCHMARKS[DEMO_POSE_PLANK_HOLD];
+    }
+    if (strstr(exercise_name, "Curl") || strstr(exercise_name, "curl")) {
+        return &DEMO_BENCHMARKS[DEMO_POSE_BICEP_PEAK];
+    }
+    return &DEMO_BENCHMARKS[DEMO_POSE_PUSHUP_BOTTOM];
+}
+
+static double demo_pose_calc_euclidean_distance(Point2D p1, Point2D p2) {
+    double dx = p1.x - p2.x;
+    double dy = p1.y - p2.y;
+    return sqrt(dx * dx + dy * dy);
+}
+
+static void demo_pose_evaluate_form(const DemoPose* demo,
+                                    Point2D user_joint_a,
+                                    Point2D user_joint_b,
+                                    Point2D user_joint_c,
+                                    Point2D user_spine_ref,
+                                    double user_primary_angle,
+                                    FormAccuracyReport* report) {
+    if (!report) return;
+    if (!demo) demo = &DEMO_BENCHMARKS[DEMO_POSE_PUSHUP_BOTTOM];
+
+    memset(report, 0, sizeof(FormAccuracyReport));
+    report->demo_id = demo->id;
+    strncpy(report->exercise_name, demo->exercise_name, sizeof(report->exercise_name) - 1);
+    strncpy(report->phase_name, demo->phase_name, sizeof(report->phase_name) - 1);
+
+    report->target_primary_angle_deg = demo->target_primary_angle_deg;
+    report->real_time_primary_angle_deg = user_primary_angle;
+    report->primary_angular_delta_deg = user_primary_angle - demo->target_primary_angle_deg;
+    double abs_angle_delta = fabs(report->primary_angular_delta_deg);
+
+    double angle_score = 0.0;
+    if (abs_angle_delta <= demo->angle_tolerance_deg) {
+        angle_score = 100.0 - (abs_angle_delta / demo->angle_tolerance_deg) * 8.0;
+    } else {
+        double excess = abs_angle_delta - demo->angle_tolerance_deg;
+        double max_excess_allowed = 45.0;
+        if (excess >= max_excess_allowed) angle_score = 0.0;
+        else angle_score = 92.0 * (1.0 - (excess / max_excess_allowed));
+    }
+    if (angle_score < 0.0) angle_score = 0.0;
+    if (angle_score > 100.0) angle_score = 100.0;
+    report->angle_accuracy_pct = angle_score;
+
+    bool has_secondary = false;
+    double secondary_score = 100.0;
+    if (user_spine_ref.is_valid && demo->target_secondary_angle_deg > 0.0) {
+        has_secondary = true;
+        report->target_secondary_angle_deg = demo->target_secondary_angle_deg;
+        report->real_time_secondary_angle_deg = calculate_joint_angle_deg(user_joint_a, user_spine_ref, user_joint_c);
+        report->secondary_angular_delta_deg = report->real_time_secondary_angle_deg - demo->target_secondary_angle_deg;
+        double abs_sec_delta = fabs(report->secondary_angular_delta_deg);
+
+        if (abs_sec_delta <= 15.0) {
+            secondary_score = 100.0 - (abs_sec_delta / 15.0) * 10.0;
+        } else {
+            secondary_score = 90.0 - ((abs_sec_delta - 15.0) / 35.0) * 90.0;
+        }
+        if (secondary_score < 0.0) secondary_score = 0.0;
+    }
+
+    report->euclidean_distance_a = demo_pose_calc_euclidean_distance(user_joint_a, demo->target_joint_a);
+    report->euclidean_distance_b = demo_pose_calc_euclidean_distance(user_joint_b, demo->target_joint_b);
+    report->euclidean_distance_c = demo_pose_calc_euclidean_distance(user_joint_c, demo->target_joint_c);
+    report->avg_euclidean_distance = (report->euclidean_distance_a +
+                                      report->euclidean_distance_b +
+                                      report->euclidean_distance_c) / 3.0;
+
+    double max_dist_tolerance = 0.25;
+    double coord_score = (1.0 - (report->avg_euclidean_distance / max_dist_tolerance)) * 100.0;
+    if (coord_score < 0.0) coord_score = 0.0;
+    if (coord_score > 100.0) coord_score = 100.0;
+    report->coordinate_accuracy_pct = coord_score;
+
+    if (has_secondary) {
+        report->composite_accuracy_pct = (0.50 * angle_score) + (0.30 * coord_score) + (0.20 * secondary_score);
+    } else {
+        report->composite_accuracy_pct = (0.60 * angle_score) + (0.40 * coord_score);
+    }
+    if (report->composite_accuracy_pct < 0.0) report->composite_accuracy_pct = 0.0;
+    if (report->composite_accuracy_pct > 100.0) report->composite_accuracy_pct = 100.0;
+
+    report->is_form_acceptable = (report->composite_accuracy_pct >= 75.0);
+
+    int rounded_score = (int)(report->composite_accuracy_pct + 0.5);
+    if (has_secondary && fabs(report->secondary_angular_delta_deg) > 18.0) {
+        snprintf(report->guidance_message, sizeof(report->guidance_message),
+                 "%d%% Match - %s", rounded_score, demo->feedback_misaligned);
+    } else if (rounded_score >= 90) {
+        snprintf(report->guidance_message, sizeof(report->guidance_message),
+                 "%d%% Match - Perfect Form! Exact match with Demo Pose!", rounded_score);
+    } else if (rounded_score >= 80) {
+        snprintf(report->guidance_message, sizeof(report->guidance_message),
+                 "%d%% Match - Great form! Solid depth and joint tracking.", rounded_score);
+    } else if (report->primary_angular_delta_deg > demo->angle_tolerance_deg) {
+        snprintf(report->guidance_message, sizeof(report->guidance_message),
+                 "%d%% Match - %s", rounded_score, demo->feedback_high_angle);
+    } else if (report->primary_angular_delta_deg < -demo->angle_tolerance_deg) {
+        snprintf(report->guidance_message, sizeof(report->guidance_message),
+                 "%d%% Match - %s", rounded_score, demo->feedback_low_angle);
+    } else {
+        snprintf(report->guidance_message, sizeof(report->guidance_message),
+                 "%d%% Match - Moderate form. Align joints closer to Demo Pose markers.", rounded_score);
+    }
+}
+
+static void demo_pose_print_comparison_hud(const FormAccuracyReport* report) {
+    if (!report) return;
+
+    printf("\n  +-----------------------------------------------------------------------------+\n");
+    printf("  |                   REFERENCE DEMO POSE ACCURACY EVALUATION                   |\n");
+    printf("  +-----------------------------------------------------------------------------+\n");
+    printf("  | Benchmark  : %-12s | Phase: %-37s |\n", report->exercise_name, report->phase_name);
+    printf("  +-----------------------------------------------------------------------------+\n");
+    printf("  |  METRIC               DEMO TARGET        USER REAL-TIME     VARIANCE        |\n");
+    printf("  |  -------------------  -----------------  -----------------  --------------  |\n");
+    printf("  |  Primary Angle        %7.1f deg          %7.1f deg          %+6.1f deg      |\n",
+           report->target_primary_angle_deg,
+           report->real_time_primary_angle_deg,
+           report->primary_angular_delta_deg);
+
+    if (report->target_secondary_angle_deg > 0.0) {
+        printf("  |  Spine Alignment      %7.1f deg          %7.1f deg          %+6.1f deg      |\n",
+               report->target_secondary_angle_deg,
+               report->real_time_secondary_angle_deg,
+               report->secondary_angular_delta_deg);
+    }
+
+    printf("  |  Euclid Coord Dist    0.000 norm         %7.3f norm         +%5.3f norm     |\n",
+           report->avg_euclidean_distance,
+           report->avg_euclidean_distance);
+
+    int comp_bars = (int)(report->composite_accuracy_pct / 4.0);
+    if (comp_bars > 25) comp_bars = 25;
+    char comp_bar_str[26];
+    memset(comp_bar_str, '=', comp_bars);
+    comp_bar_str[comp_bars] = '\0';
+
+    printf("  +-----------------------------------------------------------------------------+\n");
+    printf("  |  Angle Match Score    : [%-25s] %5.1f%%                      |\n", comp_bar_str, report->angle_accuracy_pct);
+    printf("  |  Coordinate Match     : [%-25s] %5.1f%%                      |\n", comp_bar_str, report->coordinate_accuracy_pct);
+    printf("  |  COMPOSITE ACCURACY   : [%-25s] %5.1f%% %-5s                |\n",
+           comp_bar_str, report->composite_accuracy_pct,
+           report->is_form_acceptable ? "[PASS]" : "[WARN]");
+    printf("  +-----------------------------------------------------------------------------+\n");
+    printf("  |  DYNAMIC GUIDANCE:                                                          |\n");
+    printf("  |  >>> %-70s |\n", report->guidance_message);
+    printf("  +-----------------------------------------------------------------------------+\n\n");
+}
+
+/* --- 2.7 Exercise Pose State Machine Tracker --- */
 
 static void configure_thresholds(ExerciseTracker* tracker, ExerciseType type) {
     if (type == EXERCISE_BICEP_CURL) {
@@ -835,6 +1160,20 @@ static void configure_thresholds(ExerciseTracker* tracker, ExerciseType type) {
         tracker->config.min_rep_duration_sec = 0.75;
         tracker->config.max_rep_duration_sec = 8.0;
         tracker->config.acceptable_rom_margin_deg = 15.0;
+    } else if (type == EXERCISE_PUSHUP) {
+        strncpy(tracker->name, "Push-up", sizeof(tracker->name) - 1);
+        tracker->config.extension_threshold_deg = 160.0;
+        tracker->config.contraction_threshold_deg = 80.0;
+        tracker->config.min_rep_duration_sec = 0.8;
+        tracker->config.max_rep_duration_sec = 9.0;
+        tracker->config.acceptable_rom_margin_deg = 15.0;
+    } else if (type == EXERCISE_PLANK) {
+        strncpy(tracker->name, "Plank Hold", sizeof(tracker->name) - 1);
+        tracker->config.extension_threshold_deg = 90.0;
+        tracker->config.contraction_threshold_deg = 90.0;
+        tracker->config.min_rep_duration_sec = 2.0;
+        tracker->config.max_rep_duration_sec = 120.0;
+        tracker->config.acceptable_rom_margin_deg = 10.0;
     } else {
         strncpy(tracker->name, "Squat", sizeof(tracker->name) - 1);
         tracker->config.extension_threshold_deg = 165.0;
@@ -919,6 +1258,16 @@ bool tracker_process_landmarks(ExerciseTracker* tracker,
     }
     tracker->last_frame_time_sec = current_time_sec;
 
+    tracker->last_joint_a = joint_a;
+    tracker->last_joint_b = joint_b;
+    tracker->last_joint_c = joint_c;
+
+    bool is_inflection = (tracker->current_phase == REP_PHASE_INFLECTION || tracker->current_phase == REP_PHASE_ECCENTRIC);
+    tracker->active_demo_pose = demo_pose_get_by_exercise(tracker->name, is_inflection);
+    Point2D dummy_spine = { .is_valid = false };
+    demo_pose_evaluate_form(tracker->active_demo_pose, joint_a, joint_b, joint_c, dummy_spine, angle, &tracker->last_form_report);
+    tracker->live_form_score_pct = tracker->last_form_report.composite_accuracy_pct;
+
     bool rep_registered = false;
     double ext_thresh = tracker->config.extension_threshold_deg;
     double cont_thresh = tracker->config.contraction_threshold_deg;
@@ -962,34 +1311,17 @@ bool tracker_process_landmarks(ExerciseTracker* tracker,
                     rep_registered = true;
                     tracker->current_phase = REP_PHASE_COMPLETED;
 
-                    double rom_achieved = fabs(tracker->starting_angle_deg - tracker->peak_inflection_angle_deg);
-                    double rom_target = fabs(ext_thresh - cont_thresh);
-                    double rom_ratio = (rom_target > 0) ? (rom_achieved / rom_target) : 1.0;
-                    if (rom_ratio > 1.0) rom_ratio = 1.0;
-
-                    double duration = tracker->current_rep_duration_sec;
-                    double tempo_score = (duration < 1.2) ? 0.8 : (duration > 5.0) ? 0.85 : 1.0;
-                    double form_score = (rom_ratio * 75.0) + (tempo_score * 25.0);
-                    if (form_score > 100.0) form_score = 100.0;
-                    tracker->live_form_score_pct = form_score;
-
-                    RepFormRating rating = (form_score < 70.0) ? FORM_PARTIAL_ROM :
-                                           (form_score < 85.0) ? FORM_GOOD : FORM_PERFECT;
-
-                    if (rating == FORM_PARTIAL_ROM && tracker->alert_queue) {
-                        alert_queue_push(tracker->alert_queue, ALERT_CAUTION, CAT_POSE_ALIGNMENT,
-                                         form_score, "FORM WARNING: Incomplete ROM (Peak angle: %.1f*). Full extension required.",
-                                         tracker->peak_inflection_angle_deg);
-                    }
+                    RepFormRating rating = (tracker->live_form_score_pct < 65.0) ? FORM_PARTIAL_ROM :
+                                           (tracker->live_form_score_pct < 85.0) ? FORM_GOOD : FORM_PERFECT;
 
                     if (tracker->history) {
                         RepLogEntry entry;
                         entry.rep_number = tracker->completed_reps;
                         strncpy(entry.exercise_name, tracker->name, sizeof(entry.exercise_name) - 1);
-                        entry.duration_seconds = duration;
+                        entry.duration_seconds = tracker->current_rep_duration_sec;
                         entry.inflection_angle_deg = tracker->peak_inflection_angle_deg;
                         entry.extension_angle_deg = tracker->starting_angle_deg;
-                        entry.form_score_pct = form_score;
+                        entry.form_score_pct = tracker->live_form_score_pct;
                         entry.fatigue_at_rep_pct = tracker->fatigue_scaling.composite_fatigue_pct;
                         entry.rating = rating;
                         entry.timestamp_sec = (unsigned long)current_time_sec;
@@ -998,9 +1330,9 @@ bool tracker_process_landmarks(ExerciseTracker* tracker,
 
                     if (tracker->alert_queue) {
                         alert_queue_push(tracker->alert_queue, ALERT_INFO, CAT_CADENCE_PACING,
-                                         (double)tracker->completed_reps,
-                                         "REP #%d COMPLETED (%s) | Duration: %.2fs | Form: %.1f%%",
-                                         tracker->completed_reps, tracker->name, duration, form_score);
+                                         tracker->live_form_score_pct,
+                                         "REP #%d: %s",
+                                         tracker->completed_reps, tracker->last_form_report.guidance_message);
                     }
                 }
                 tracker->current_phase = REP_PHASE_START;
@@ -1019,11 +1351,11 @@ bool tracker_process_landmarks(ExerciseTracker* tracker,
 void tracker_render_hud(const ExerciseTracker* tracker) {
     if (!tracker) return;
     const char* phase_str = (tracker->current_phase == REP_PHASE_START) ? "NEUTRAL START  " :
-                            (tracker->current_phase == REP_PHASE_ECCENTRIC) ? "ECCENTRIC DOWN " :
+                            (tracker->current_phase == REP_PHASE_ECCENTRIC) ? "ECCENTRIC LOAD " :
                             (tracker->current_phase == REP_PHASE_INFLECTION) ? "PEAK INFLECTION" :
                             (tracker->current_phase == REP_PHASE_CONCENTRIC) ? "CONCENTRIC UP  " : "REP CONFIRMED  ";
 
-    int bar_width = 30;
+    int bar_width = 24;
     double min_a = 30.0, max_a = 180.0;
     double fraction = (tracker->smoothed_angle_deg - min_a) / (max_a - min_a);
     if (fraction < 0.0) fraction = 0.0;
@@ -1031,20 +1363,44 @@ void tracker_render_hud(const ExerciseTracker* tracker) {
     int fill = (int)(fraction * bar_width);
 
     printf("\n  +--- LIVE BIOMECHANICAL POSE HUD: %-15s ---+\n", tracker->name);
-    printf("  | Joint Angle Theta : %6.1f* (Raw: %5.1f*)                          |\n",
-           tracker->smoothed_angle_deg, tracker->raw_angle_deg);
-    printf("  | Angle Gauge       : [");
+    printf("  | FSM Phase         : %-22s                    |\n", phase_str);
+    printf("  | Progress          : Reps: %2d / %-2d (Planned: %2d)                    |\n",
+           tracker->completed_reps, tracker->target_reps, tracker->planned_target_reps);
+
+    if (tracker->active_demo_pose) {
+        printf("  | ------------------------------------------------------------- |\n");
+        printf("  | [DEMO POSE TARGET] vs [USER REAL-TIME KINEMATICS]             |\n");
+        printf("  | Target Angle      : %5.1f* (Phase: %-23.23s) |\n",
+               tracker->active_demo_pose->target_primary_angle_deg, tracker->active_demo_pose->phase_name);
+        printf("  | User Live Angle   : %5.1f* (Delta: %+5.1f*, Vel: %4.0f*/s)         |\n",
+               tracker->smoothed_angle_deg, tracker->last_form_report.primary_angular_delta_deg,
+               tracker->live_velocity_deg_per_sec);
+        printf("  | Joint Coordinate  : Target [%4.2f, %4.2f]  User [%4.2f, %4.2f]       |\n",
+               tracker->active_demo_pose->target_joint_b.x, tracker->active_demo_pose->target_joint_b.y,
+               tracker->last_joint_b.x, tracker->last_joint_b.y);
+        printf("  | Euclid Coord Dist : %5.3f norm units                            |\n",
+               tracker->last_form_report.avg_euclidean_distance);
+        printf("  | Form Accuracy     : %5.1f%% %-32s |\n",
+               tracker->last_form_report.composite_accuracy_pct,
+               (tracker->last_form_report.composite_accuracy_pct >= 85.0 ? "[EXCELLENT MATCH]" :
+                tracker->last_form_report.composite_accuracy_pct >= 70.0 ? "[GOOD FORM]" : "[DEVIATION]"));
+        printf("  | Dynamic Guidance  : %-41.41s |\n", tracker->last_form_report.guidance_message);
+        printf("  | ------------------------------------------------------------- |\n");
+    } else {
+        printf("  | Joint Angle Theta : %6.1f* (Raw: %5.1f*)                          |\n",
+               tracker->smoothed_angle_deg, tracker->raw_angle_deg);
+        printf("  | Live Form Quality : %5.1f%%                                        |\n",
+               tracker->live_form_score_pct);
+    }
+
+    printf("  | Angle Arc Gauge   : [");
     for (int i = 0; i < bar_width; ++i) {
         if (i < fill) printf("=");
         else if (i == fill) printf("O");
         else printf(" ");
     }
-    printf("] %3.0f*      |\n", tracker->smoothed_angle_deg);
-    printf("  | FSM Phase         : %-20s                     |\n", phase_str);
-    printf("  | Progress          : Reps: %2d / %-2d (Planned: %2d)                     |\n",
-           tracker->completed_reps, tracker->target_reps, tracker->planned_target_reps);
-    printf("  | Live Form Quality : %5.1f%%                                        |\n",
-           tracker->live_form_score_pct);
+    printf("] %3.0f*     |\n", tracker->smoothed_angle_deg);
+
     printf("  | Fatigue Telemetry : %5.1f%% (Zone: %-8s)                     |\n",
            tracker->fatigue_scaling.composite_fatigue_pct,
            (tracker->fatigue_scaling.zone == FATIGUE_ZONE_EXHAUSTED ? "EXHAUSTED" :
@@ -1122,17 +1478,48 @@ static void generate_mock_squat_frame(double cycle_progress, double jitter,
     if (jitter > 0.0) {
         double r = ((double)rand() / (double)RAND_MAX) - 0.5;
         target_angle_deg += (r * jitter);
-    }
-
-    double angle_rad = DEG_TO_RAD(target_angle_deg);
+       double angle_rad = DEG_TO_RAD(target_angle_deg);
     double thigh_len = 0.30;
     out_hip->x = out_knee->x - thigh_len * cos(angle_rad);
     out_hip->y = out_knee->y - thigh_len * sin(angle_rad);
     out_hip->confidence = 0.97f; out_hip->is_valid = true;
 }
 
+static void generate_mock_pushup_frame(double cycle_progress, double jitter,
+                                       Point2D* out_shoulder, Point2D* out_elbow, Point2D* out_wrist) {
+    out_wrist->x = 0.38; out_wrist->y = 0.80; out_wrist->confidence = 0.99f; out_wrist->is_valid = true;
+    double sine_phase = sin(cycle_progress * 2.0 * M_PI - (M_PI / 2.0));
+    double norm_pos = (sine_phase + 1.0) / 2.0;
+    double target_angle_deg = 165.0 - (norm_pos * 75.0);
+    if (jitter > 0.0) {
+        double r = ((double)rand() / (double)RAND_MAX) - 0.5;
+        target_angle_deg += (r * jitter);
+    }
+    out_elbow->x = 0.38; out_elbow->y = 0.65; out_elbow->confidence = 0.98f; out_elbow->is_valid = true;
+    double angle_rad = DEG_TO_RAD(target_angle_deg);
+    double humerus_len = 0.20;
+    out_shoulder->x = out_elbow->x + humerus_len * cos(angle_rad);
+    out_shoulder->y = out_elbow->y - humerus_len * sin(angle_rad);
+    out_shoulder->confidence = 0.97f; out_shoulder->is_valid = true;
+}
+
+static void generate_mock_plank_frame(double cycle_progress, double jitter,
+                                      Point2D* out_shoulder, Point2D* out_elbow, Point2D* out_wrist) {
+    out_wrist->x = 0.45; out_wrist->y = 0.72; out_wrist->confidence = 0.99f; out_wrist->is_valid = true;
+    out_elbow->x = 0.30; out_elbow->y = 0.72; out_elbow->confidence = 0.98f; out_elbow->is_valid = true;
+    double angle_deg = 90.0;
+    if (jitter > 0.0) {
+        double r = ((double)rand() / (double)RAND_MAX) - 0.5;
+        angle_deg += (r * jitter * 0.4);
+    }
+    out_shoulder->x = 0.30;
+    out_shoulder->y = 0.55 + (sin(cycle_progress * 4.0 * M_PI) * 0.005);
+    out_shoulder->confidence = 0.98f; out_shoulder->is_valid = true;
+}
+
 void aurafit_run_live_simulation(AuraFitSystem* sys, ExerciseType ex_type, int rep_goal, bool simulate_fatigue) {
     if (!sys) return;
+
     tracker_set_exercise(sys->tracker, ex_type);
     sys->tracker->target_reps = rep_goal;
     sys->tracker->planned_target_reps = rep_goal;
@@ -1177,6 +1564,8 @@ void aurafit_run_live_simulation(AuraFitSystem* sys, ExerciseType ex_type, int r
 
         double jitter = (simulate_fatigue && current_simulated_rep >= 4) ? (current_simulated_rep * 1.5) : 0.5;
         if (ex_type == EXERCISE_SQUAT) generate_mock_squat_frame(current_rep_fraction, jitter, &p_a, &p_b, &p_c);
+        else if (ex_type == EXERCISE_PUSHUP) generate_mock_pushup_frame(current_rep_fraction, jitter, &p_a, &p_b, &p_c);
+        else if (ex_type == EXERCISE_PLANK) generate_mock_plank_frame(current_rep_fraction, jitter, &p_a, &p_b, &p_c);
         else generate_mock_bicep_curl_frame(current_rep_fraction, jitter, &p_a, &p_b, &p_c);
 
         bool completed = tracker_process_landmarks(sys->tracker, p_a, p_b, p_c, current_time);
@@ -1200,6 +1589,65 @@ void aurafit_run_live_simulation(AuraFitSystem* sys, ExerciseType ex_type, int r
 
     alert_queue_drain_and_print(sys->alert_queue);
     rep_history_print_report(sys->history);
+}
+
+void aurafit_run_demo_pose_comparison_lab(void) {
+    printf("\n  +===================================================================+\n");
+    printf("  |     REFERENCE DEMO POSE BENCHMARK & REAL-TIME FORM ACCURACY LAB   |\n");
+    printf("  +===================================================================+\n");
+    printf("  Select Benchmark Demo Pose:\n");
+    printf("    1) Pushup (Bottom Inflection 90 deg Elbow Flexion)\n");
+    printf("    2) Pushup (Top Extension 165 deg Lockout)\n");
+    printf("    3) Squat (Parallel Depth 85 deg Knee Flexion)\n");
+    printf("    4) Squat (Standing Extension 170 deg Lockout)\n");
+    printf("    5) Plank (Isometric Core Hold 90 deg Elbow Base)\n");
+    printf("    6) Bicep Curl (Peak Contraction 45 deg Flexion)\n");
+    printf("  Choice [1-6]: ");
+
+    int p_choice = 1;
+    if (scanf("%d", &p_choice) != 1) p_choice = 1;
+    if (p_choice < 1 || p_choice > 6) p_choice = 1;
+
+    DemoPoseID demo_id = (DemoPoseID)(p_choice - 1);
+    const DemoPose* demo = demo_pose_get_benchmark(demo_id);
+
+    printf("\n  Select Evaluation Scenario:\n");
+    printf("    1) Perfect Execution (Exact Match with Demo Pose Targets)\n");
+    printf("    2) Partial Range of Motion (Insufficient Angle Depth)\n");
+    printf("    3) Spine Misalignment (Sagging Hips / Poor Core Tension)\n");
+    printf("    4) Custom User Joint Angle & Coordinate Input\n");
+    printf("  Choice [1-4]: ");
+
+    int s_choice = 1;
+    if (scanf("%d", &s_choice) != 1) s_choice = 1;
+
+    Point2D user_a = demo->target_joint_a;
+    Point2D user_b = demo->target_joint_b;
+    Point2D user_c = demo->target_joint_c;
+    Point2D user_spine = demo->target_spine_ref;
+    double user_angle = demo->target_primary_angle_deg;
+
+    if (s_choice == 1) {
+        user_angle = demo->target_primary_angle_deg + 1.2;
+        user_b.x += 0.005; user_b.y += 0.003;
+    } else if (s_choice == 2) {
+        user_angle = demo->target_primary_angle_deg + 25.0;
+        user_b.y += 0.04; user_a.y += 0.03;
+    } else if (s_choice == 3) {
+        user_angle = demo->target_primary_angle_deg + 5.0;
+        user_spine.y += 0.12;
+    } else if (s_choice == 4) {
+        printf("\n  Enter Real-Time User Joint Angle in degrees (Target: %.1f deg): ", demo->target_primary_angle_deg);
+        if (scanf("%lf", &user_angle) != 1) user_angle = demo->target_primary_angle_deg;
+        printf("  Enter User Vertex Coordinate X [0.0 - 1.0] (Target: %.2f): ", demo->target_joint_b.x);
+        if (scanf("%lf", &user_b.x) != 1) user_b.x = demo->target_joint_b.x;
+        printf("  Enter User Vertex Coordinate Y [0.0 - 1.0] (Target: %.2f): ", demo->target_joint_b.y);
+        if (scanf("%lf", &user_b.y) != 1) user_b.y = demo->target_joint_b.y;
+    }
+
+    FormAccuracyReport report;
+    demo_pose_evaluate_form(demo, user_a, user_b, user_c, user_spine, user_angle, &report);
+    demo_pose_print_comparison_hud(&report);
 }
 
 void aurafit_run_spatial_scanner_demo(AuraFitSystem* sys) {
@@ -1355,6 +1803,38 @@ void aurafit_run_automated_tests(void) {
         printf("  [FAIL] Test 6: Fatigue Adjuster failed\n");
     }
 
+    /* 7. Demo Pose Euclidean Distance & 100% Benchmark Accuracy */
+    total++;
+    const DemoPose* pushup_demo = demo_pose_get_benchmark(DEMO_POSE_PUSHUP_BOTTOM);
+    Point2D p_a1 = {0.38, 0.50, 1.0f, true};
+    Point2D p_b1 = {0.38, 0.65, 1.0f, true};
+    double d = demo_pose_calc_euclidean_distance(p_a1, p_b1);
+    FormAccuracyReport rep_perfect;
+    demo_pose_evaluate_form(pushup_demo, pushup_demo->target_joint_a, pushup_demo->target_joint_b,
+                            pushup_demo->target_joint_c, pushup_demo->target_spine_ref,
+                            90.0, &rep_perfect);
+    if (fabs(d - 0.15) < 1e-5 && rep_perfect.composite_accuracy_pct >= 95.0) {
+        printf("  [PASS] Test 7: Demo Pose Euclidean Distance (d=%.2f) & Benchmark Match (%.1f%%)\n",
+               d, rep_perfect.composite_accuracy_pct);
+        passed++;
+    } else {
+        printf("  [FAIL] Test 7: Demo Pose Benchmark Evaluation failed\n");
+    }
+
+    /* 8. Dynamic Form Guidance & Deviation Penalty */
+    total++;
+    FormAccuracyReport rep_shallow;
+    demo_pose_evaluate_form(pushup_demo, pushup_demo->target_joint_a, pushup_demo->target_joint_b,
+                            pushup_demo->target_joint_c, pushup_demo->target_spine_ref,
+                            125.0, &rep_shallow);
+    if (rep_shallow.composite_accuracy_pct < 80.0 && strstr(rep_shallow.guidance_message, "Lower your chest")) {
+        printf("  [PASS] Test 8: Dynamic Form Guidance (Score: %.1f%%, Guidance: \"%s\")\n",
+               rep_shallow.composite_accuracy_pct, rep_shallow.guidance_message);
+        passed++;
+    } else {
+        printf("  [FAIL] Test 8: Dynamic Form Guidance failed\n");
+    }
+
     printf("\n  RESULTS: %d / %d TESTS PASSED (100.0%% Success Rate)\n", passed, total);
     printf("  ===============================================================\n\n");
 }
@@ -1366,16 +1846,17 @@ void aurafit_run_interactive_menu(AuraFitSystem* sys) {
         printf("\n  +===================================================================+\n");
         printf("  |        AURAFIT: AI-POWERED POSE & SPATIAL SAFETY ENGINE (C)       |\n");
         printf("  +===================================================================+\n");
-        printf("  | 1) Live Interactive Workout Simulation (Bicep Curls / Squats)    |\n");
-        printf("  | 2) Spatial Environment Density Matrix Scanner & Radar            |\n");
-        printf("  | 3) Biomechanical Vector Math & Joint Angle Calculation Lab       |\n");
-        printf("  | 4) Dynamic Fatigue Scaling & Target Rep Adjuster Demo            |\n");
-        printf("  | 5) View Completed Workout Rep History & Analytics Report         |\n");
-        printf("  | 6) Inspect Real-Time Safety & Guidance FIFO Alert Queue          |\n");
-        printf("  | 7) Run Automated Algorithmic Test & Verification Suite           |\n");
-        printf("  | 8) Exit AuraFit System                                            |\n");
+        printf("  | 1) Live Interactive Workout Simulation (Pushup / Squat / Plank)   |\n");
+        printf("  | 2) Spatial Environment Density Matrix Scanner & Radar             |\n");
+        printf("  | 3) Biomechanical Vector Math & Joint Angle Calculation Lab        |\n");
+        printf("  | 4) Dynamic Fatigue Scaling & Target Rep Adjuster Demo             |\n");
+        printf("  | 5) View Completed Workout Rep History & Analytics Report          |\n");
+        printf("  | 6) Inspect Real-Time Safety & Guidance FIFO Alert Queue           |\n");
+        printf("  | 7) Reference Demo Pose Benchmark & Form Accuracy Comparison Lab   |\n");
+        printf("  | 8) Run Automated Algorithmic Test & Verification Suite            |\n");
+        printf("  | 9) Exit AuraFit System                                            |\n");
         printf("  +===================================================================+\n");
-        printf("  Select an Option [1-8]: ");
+        printf("  Select an Option [1-9]: ");
 
         if (scanf("%d", &choice) != 1) {
             choice = 0;
@@ -1385,13 +1866,17 @@ void aurafit_run_interactive_menu(AuraFitSystem* sys) {
         switch (choice) {
             case 1: {
                 int ex_c = 1, reps = 6, fat = 1;
-                printf("\n  Select Exercise: 1) Bicep Curls  2) Squats: ");
+                printf("\n  Select Exercise:\n   1) Pushups (90 deg bottom)\n   2) Squats (85 deg depth)\n   3) Plank (Isometric Core Hold)\n   4) Bicep Curls\n  Choice [1-4]: ");
                 if (scanf("%d", &ex_c) != 1) ex_c = 1;
                 printf("  Target Reps: ");
                 if (scanf("%d", &reps) != 1 || reps <= 0) reps = 6;
                 printf("  Simulate Fatigue Scaling (1=Yes, 0=No): ");
                 if (scanf("%d", &fat) != 1) fat = 1;
-                aurafit_run_live_simulation(sys, (ex_c == 2) ? EXERCISE_SQUAT : EXERCISE_BICEP_CURL, reps, fat != 0);
+                ExerciseType ex_t = EXERCISE_PUSHUP;
+                if (ex_c == 2) ex_t = EXERCISE_SQUAT;
+                else if (ex_c == 3) ex_t = EXERCISE_PLANK;
+                else if (ex_c == 4) ex_t = EXERCISE_BICEP_CURL;
+                aurafit_run_live_simulation(sys, ex_t, reps, fat != 0);
                 break;
             }
             case 2: aurafit_run_spatial_scanner_demo(sys); break;
@@ -1399,13 +1884,14 @@ void aurafit_run_interactive_menu(AuraFitSystem* sys) {
             case 4: aurafit_run_fatigue_scaling_demo(sys); break;
             case 5: rep_history_print_report(sys->history); break;
             case 6: alert_queue_drain_and_print(sys->alert_queue); break;
-            case 7: aurafit_run_automated_tests(); break;
-            case 8:
+            case 7: aurafit_run_demo_pose_comparison_lab(); break;
+            case 8: aurafit_run_automated_tests(); break;
+            case 9:
                 printf("\n  Shutting down AuraFit Engine. Clean deallocation completed.\n");
                 sys->is_running = false;
                 break;
             default:
-                printf("\n  [!] Invalid choice. Please enter 1-8.\n");
+                printf("\n  [!] Invalid choice. Please enter 1-9.\n");
                 break;
         }
     }

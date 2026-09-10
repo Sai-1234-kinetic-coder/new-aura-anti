@@ -15,6 +15,7 @@
 #include "rep_history.h"
 #include "fatigue_engine.h"
 #include "exercise_tracker.h"
+#include "demo_pose.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -68,6 +69,11 @@ void aurafit_run_vector_math_lab(void);
  * @brief Runs dynamic fatigue adjuster scaling simulation.
  */
 void aurafit_run_fatigue_scaling_demo(AuraFitSystem* sys);
+
+/**
+ * @brief Runs interactive Demo Pose Benchmark & Form Accuracy Comparison Lab.
+ */
+void aurafit_run_demo_pose_comparison_lab(void);
 
 /**
  * @brief Runs the complete automated algorithmic unit test suite.

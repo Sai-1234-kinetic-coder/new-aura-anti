@@ -49,6 +49,15 @@ static void configure_thresholds(ExerciseTracker* tracker, ExerciseType type) {
             tracker->config.max_rep_duration_sec = 9.0;
             tracker->config.acceptable_rom_margin_deg = 15.0;
             break;
+
+        case EXERCISE_PLANK:
+            strncpy(tracker->name, "Plank Hold", sizeof(tracker->name) - 1);
+            tracker->config.extension_threshold_deg = 90.0;
+            tracker->config.contraction_threshold_deg = 90.0;
+            tracker->config.min_rep_duration_sec = 2.0;
+            tracker->config.max_rep_duration_sec = 120.0;
+            tracker->config.acceptable_rom_margin_deg = 10.0;
+            break;
     }
 }
 
@@ -139,6 +148,18 @@ bool tracker_process_landmarks(ExerciseTracker* tracker,
     }
     tracker->last_frame_time_sec = current_time_sec;
 
+    /* Track keypoints */
+    tracker->last_joint_a = joint_a;
+    tracker->last_joint_b = joint_b;
+    tracker->last_joint_c = joint_c;
+
+    /* Form Accuracy & Reference Demo Pose Benchmark Comparison */
+    bool is_inflection = (tracker->current_phase == REP_PHASE_INFLECTION || tracker->current_phase == REP_PHASE_ECCENTRIC);
+    tracker->active_demo_pose = demo_pose_get_by_exercise(tracker->name, is_inflection);
+    Point2D dummy_spine = { .is_valid = false };
+    demo_pose_evaluate_form(tracker->active_demo_pose, joint_a, joint_b, joint_c, dummy_spine, angle, &tracker->last_form_report);
+    tracker->live_form_score_pct = tracker->last_form_report.composite_accuracy_pct;
+
     bool rep_registered = false;
     double ext_thresh = tracker->config.extension_threshold_deg;
     double cont_thresh = tracker->config.contraction_threshold_deg;
@@ -165,7 +186,7 @@ bool tracker_process_landmarks(ExerciseTracker* tracker,
         case REP_PHASE_ECCENTRIC: {
             tracker->current_rep_duration_sec = current_time_sec - tracker->rep_start_time_sec;
 
-            /* Track apex/trough peak angle reached */
+            /* Track minimum or maximum inflection reached */
             if (!is_inversion) {
                 if (angle < tracker->peak_inflection_angle_deg) {
                     tracker->peak_inflection_angle_deg = angle;
@@ -176,12 +197,15 @@ bool tracker_process_landmarks(ExerciseTracker* tracker,
                 }
             }
 
-            /* Check inflection threshold reached */
-            bool reached_inflection = !is_inversion ? (angle <= cont_thresh) : (angle >= cont_thresh);
-            if (reached_inflection) {
+            /* Check if target contraction boundary reached */
+            bool reached_contraction = !is_inversion ? 
+                (angle <= (cont_thresh + tracker->config.acceptable_rom_margin_deg)) :
+                (angle >= (cont_thresh - tracker->config.acceptable_rom_margin_deg));
+
+            if (reached_contraction) {
                 tracker->current_phase = REP_PHASE_INFLECTION;
             } else if (tracker->current_rep_duration_sec > tracker->config.max_rep_duration_sec) {
-                /* Timeout reset */
+                /* Reset if rep stalls */
                 tracker->current_phase = REP_PHASE_START;
             }
             break;
@@ -190,16 +214,12 @@ bool tracker_process_landmarks(ExerciseTracker* tracker,
         case REP_PHASE_INFLECTION: {
             tracker->current_rep_duration_sec = current_time_sec - tracker->rep_start_time_sec;
 
-            /* Update peak */
-            if (!is_inversion) {
-                if (angle < tracker->peak_inflection_angle_deg) tracker->peak_inflection_angle_deg = angle;
-            } else {
-                if (angle > tracker->peak_inflection_angle_deg) tracker->peak_inflection_angle_deg = angle;
-            }
+            /* Moving back towards extension begins concentric phase */
+            bool return_motion = !is_inversion ? 
+                (angle > (tracker->peak_inflection_angle_deg + 10.0)) :
+                (angle < (tracker->peak_inflection_angle_deg - 10.0));
 
-            /* Moving back up towards full extension */
-            bool returning = !is_inversion ? (angle > (cont_thresh + 12.0)) : (angle < (cont_thresh - 12.0));
-            if (returning) {
+            if (return_motion) {
                 tracker->current_phase = REP_PHASE_CONCENTRIC;
             }
             break;
@@ -208,65 +228,49 @@ bool tracker_process_landmarks(ExerciseTracker* tracker,
         case REP_PHASE_CONCENTRIC: {
             tracker->current_rep_duration_sec = current_time_sec - tracker->rep_start_time_sec;
 
-            /* Check return to full extension */
-            bool reached_full_ext = !is_inversion ? (angle >= (ext_thresh - tracker->config.acceptable_rom_margin_deg))
-                                                  : (angle <= (ext_thresh + tracker->config.acceptable_rom_margin_deg));
+            /* Check return to extension threshold */
+            bool returned_to_start = !is_inversion ? 
+                (angle >= (ext_thresh - 15.0)) :
+                (angle <= (ext_thresh + 15.0));
 
-            if (reached_full_ext) {
-                /* Validate debounce time */
+            if (returned_to_start) {
+                /* Validate rep duration (debounce against rapid twitching) */
                 if (tracker->current_rep_duration_sec >= tracker->config.min_rep_duration_sec) {
+                    tracker->current_phase = REP_PHASE_COMPLETED;
                     tracker->completed_reps++;
                     rep_registered = true;
-                    tracker->current_phase = REP_PHASE_COMPLETED;
 
-                    /* Evaluate Form Quality */
-                    double rom_achieved = fabs(tracker->starting_angle_deg - tracker->peak_inflection_angle_deg);
-                    double rom_target = fabs(ext_thresh - cont_thresh);
-                    double rom_ratio = (rom_target > 0) ? (rom_achieved / rom_target) : 1.0;
-                    if (rom_ratio > 1.0) rom_ratio = 1.0;
+                    /* Evaluate form rating based on Demo Pose accuracy */
+                    FormRating rating = FORM_ADEQUATE;
+                    if (tracker->live_form_score_pct >= 90.0) rating = FORM_PERFECT;
+                    else if (tracker->live_form_score_pct >= 75.0) rating = FORM_GOOD;
+                    else if (tracker->live_form_score_pct < 60.0) rating = FORM_POOR;
 
-                    double duration = tracker->current_rep_duration_sec;
-                    double tempo_score = 1.0;
-                    if (duration < 1.2) tempo_score = 0.8; /* Too fast */
-                    else if (duration > 5.0) tempo_score = 0.85; /* Slower */
-
-                    double form_score = (rom_ratio * 75.0) + (tempo_score * 25.0);
-                    if (form_score > 100.0) form_score = 100.0;
-                    tracker->live_form_score_pct = form_score;
-
-                    RepFormRating rating = FORM_PERFECT;
-                    if (form_score < 70.0) {
-                        rating = FORM_PARTIAL_ROM;
-                        if (tracker->alert_queue) {
-                            alert_queue_push(tracker->alert_queue, ALERT_CAUTION, CAT_POSE_ALIGNMENT,
-                                             form_score, "FORM WARNING: Incomplete ROM (Peak angle: %.1f*). Full extension required.",
-                                             tracker->peak_inflection_angle_deg);
-                        }
-                    } else if (form_score < 85.0) {
-                        rating = FORM_GOOD;
-                    }
-
-                    /* Log into Dynamic Array History */
+                    /* Log to dynamic rep history */
                     if (tracker->history) {
                         RepLogEntry entry;
                         entry.rep_number = tracker->completed_reps;
                         strncpy(entry.exercise_name, tracker->name, sizeof(entry.exercise_name) - 1);
-                        entry.duration_seconds = duration;
-                        entry.inflection_angle_deg = tracker->peak_inflection_angle_deg;
-                        entry.extension_angle_deg = tracker->starting_angle_deg;
-                        entry.form_score_pct = form_score;
+                        entry.duration_seconds = tracker->current_rep_duration_sec;
+                        entry.form_score_pct = tracker->live_form_score_pct;
                         entry.fatigue_at_rep_pct = tracker->fatigue_scaling.composite_fatigue_pct;
                         entry.rating = rating;
-                        entry.timestamp_sec = (unsigned long)current_time_sec;
                         rep_history_append(tracker->history, &entry);
                     }
 
-                    /* Inform queue on completion */
+                    /* Dispatch feedback alert */
                     if (tracker->alert_queue) {
-                        alert_queue_push(tracker->alert_queue, ALERT_INFO, CAT_CADENCE_PACING,
-                                         (double)tracker->completed_reps,
-                                         "REP #%d COMPLETED (%s) | Duration: %.2fs | Form: %.1f%%",
-                                         tracker->completed_reps, tracker->name, duration, form_score);
+                        if (rating == FORM_PERFECT) {
+                            alert_queue_push(tracker->alert_queue, ALERT_INFO, CAT_POSE_ALIGNMENT,
+                                             tracker->live_form_score_pct,
+                                             "REP #%d: %s",
+                                             tracker->completed_reps, tracker->last_form_report.guidance_message);
+                        } else if (rating == FORM_POOR) {
+                            alert_queue_push(tracker->alert_queue, ALERT_WARNING, CAT_POSE_ALIGNMENT,
+                                             tracker->live_form_score_pct,
+                                             "REP #%d: %s",
+                                             tracker->completed_reps, tracker->last_form_report.guidance_message);
+                        }
                     }
                 }
                 /* Reset phase to start */
@@ -291,14 +295,14 @@ void tracker_render_hud(const ExerciseTracker* tracker) {
     const char* phase_str = "START";
     switch (tracker->current_phase) {
         case REP_PHASE_START:      phase_str = "NEUTRAL START  "; break;
-        case REP_PHASE_ECCENTRIC:  phase_str = "ECCENTRIC DOWN "; break;
+        case REP_PHASE_ECCENTRIC:  phase_str = "ECCENTRIC LOAD "; break;
         case REP_PHASE_INFLECTION: phase_str = "PEAK INFLECTION"; break;
         case REP_PHASE_CONCENTRIC: phase_str = "CONCENTRIC UP  "; break;
         case REP_PHASE_COMPLETED:  phase_str = "REP CONFIRMED  "; break;
     }
 
     /* ASCII Gauge Bar for Angle */
-    int bar_width = 30;
+    int bar_width = 24;
     double min_a = 30.0;
     double max_a = 180.0;
     double fraction = (tracker->smoothed_angle_deg - min_a) / (max_a - min_a);
@@ -307,22 +311,45 @@ void tracker_render_hud(const ExerciseTracker* tracker) {
     int fill = (int)(fraction * bar_width);
 
     printf("\n  +--- LIVE BIOMECHANICAL POSE HUD: %-15s ---+\n", tracker->name);
-    printf("  | Joint Angle Theta : %6.1f* (Raw: %5.1f*)                          |\n",
-           tracker->smoothed_angle_deg, tracker->raw_angle_deg);
-    
-    printf("  | Angle Gauge       : [");
+    printf("  | FSM Phase         : %-22s                    |\n", phase_str);
+    printf("  | Progress          : Reps: %2d / %-2d (Planned: %2d)                    |\n",
+           tracker->completed_reps, tracker->target_reps, tracker->planned_target_reps);
+
+    /* Side-by-Side Target Angle vs User Angle */
+    if (tracker->active_demo_pose) {
+        printf("  | ------------------------------------------------------------- |\n");
+        printf("  | [DEMO POSE TARGET] vs [USER REAL-TIME KINEMATICS]             |\n");
+        printf("  | Target Angle      : %5.1f* (Phase: %-23.23s) |\n",
+               tracker->active_demo_pose->target_primary_angle_deg, tracker->active_demo_pose->phase_name);
+        printf("  | User Live Angle   : %5.1f* (Delta: %+5.1f*, Vel: %4.0f*/s)         |\n",
+               tracker->smoothed_angle_deg, tracker->last_form_report.primary_angular_delta_deg,
+               tracker->live_velocity_deg_per_sec);
+        printf("  | Joint Coordinate  : Target [%4.2f, %4.2f]  User [%4.2f, %4.2f]       |\n",
+               tracker->active_demo_pose->target_joint_b.x, tracker->active_demo_pose->target_joint_b.y,
+               tracker->last_joint_b.x, tracker->last_joint_b.y);
+        printf("  | Euclid Coord Dist : %5.3f norm units                            |\n",
+               tracker->last_form_report.avg_euclidean_distance);
+        printf("  | Form Accuracy     : %5.1f%% %-32s |\n",
+               tracker->last_form_report.composite_accuracy_pct,
+               (tracker->last_form_report.composite_accuracy_pct >= 85.0 ? "[EXCELLENT MATCH]" :
+                tracker->last_form_report.composite_accuracy_pct >= 70.0 ? "[GOOD FORM]" : "[DEVIATION]"));
+        printf("  | Dynamic Guidance  : %-41.41s |\n", tracker->last_form_report.guidance_message);
+        printf("  | ------------------------------------------------------------- |\n");
+    } else {
+        printf("  | Joint Angle Theta : %6.1f* (Raw: %5.1f*)                          |\n",
+               tracker->smoothed_angle_deg, tracker->raw_angle_deg);
+        printf("  | Live Form Quality : %5.1f%%                                        |\n",
+               tracker->live_form_score_pct);
+    }
+
+    printf("  | Angle Arc Gauge   : [");
     for (int i = 0; i < bar_width; ++i) {
         if (i < fill) printf("=");
         else if (i == fill) printf("O");
         else printf(" ");
     }
-    printf("] %3.0f*      |\n", tracker->smoothed_angle_deg);
+    printf("] %3.0f*     |\n", tracker->smoothed_angle_deg);
 
-    printf("  | FSM Phase         : %-20s                     |\n", phase_str);
-    printf("  | Progress          : Reps: %2d / %-2d (Planned: %2d)                     |\n",
-           tracker->completed_reps, tracker->target_reps, tracker->planned_target_reps);
-    printf("  | Live Form Quality : %5.1f%%                                        |\n",
-           tracker->live_form_score_pct);
     printf("  | Fatigue Telemetry : %5.1f%% (Zone: %-8s)                     |\n",
            tracker->fatigue_scaling.composite_fatigue_pct,
            (tracker->fatigue_scaling.zone == FATIGUE_ZONE_EXHAUSTED ? "EXHAUSTED" :
@@ -330,7 +357,7 @@ void tracker_render_hud(const ExerciseTracker* tracker) {
             tracker->fatigue_scaling.zone == FATIGUE_ZONE_ELEVATED  ? "ELEVATED"  : "OPTIMAL"));
 
     if (tracker->fatigue_scaling.requires_intervention) {
-        printf("  | Fatigue Warning   : %-48.48s |\n", tracker->fatigue_scaling.recommendation_text);
+        printf("  | Fatigue Alert     : %-48.48s |\n", tracker->fatigue_scaling.recommendation_text);
     }
     printf("  +-------------------------------------------------------------+\n");
 }

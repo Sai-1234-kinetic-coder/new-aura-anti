@@ -33,6 +33,15 @@ High-performance, pure C99 standalone console application implementing real-time
   - $45\% \le \text{CFI} < 65\%$: Moderate fatigue; trims target reps by $-15\%$.
   - $\text{CFI} < 45\%$: Nominal planned volume maintained.
 
+### 6. Reference Demo Pose & Form Accuracy Engine (`DemoPose`, `FormAccuracyReport`)
+- **Benchmark Library**: Preconfigured kinematic standards for **Pushups** (90° elbow inflection, 165° lockout), **Squats** (85° parallel knee depth, 170° extension), and **Planks** (90° elbow ground angle, 180° straight spine alignment).
+- **Euclidean Coordinate Distance**:
+  $$d(p_1, p_2) = \sqrt{(x_1 - x_2)^2 + (y_1 - y_2)^2}$$
+  Calculates average joint deviation $\bar{d}_{\text{euclid}}$ across anatomical landmarks.
+- **Composite Form Accuracy Percentage**:
+  $$\text{Accuracy \%} = 0.60 \times \text{Score}_{\text{angle}} + 0.40 \times \text{Score}_{\text{coord}}$$
+- **Dynamic Form Guidance**: Generates real-time contextual coaching cues (e.g., *"95% Match - Perfect Form!"*, *"70% Match - Lower your hips to match Demo Pose"*).
+
 ---
 
 ## 🚀 Compilation & Execution
@@ -64,10 +73,12 @@ make
 
 ## 🖥️ Interactive Console Menu Features
 
-1. **Live Interactive Workout Simulation**: Streams kinematic landmarks through the FSM state tracker with real-time HUD gauge, form scores, and dynamic fatigue adjustments.
+1. **Live Interactive Workout Simulation**: Streams kinematic landmarks for Pushups, Squats, Planks, and Bicep Curls with real-time HUD gauge, form scores, Demo Pose target comparison, and dynamic fatigue adjustments.
 2. **Spatial Environment Matrix Scanner & Radar**: Interactive ASCII radar scan of room density with obstacle proximity alerts.
 3. **Biomechanical Vector Math Lab**: Computes Euclidean dot products and interior angles for custom $(x, y)$ coordinate triplets.
 4. **Dynamic Fatigue Scaling Demo**: Test rule-based target rep adjustments under varying mental/physical fatigue.
 5. **Completed Workout Rep History & Analytics Report**: Tabular breakdown of completed reps and performance consistency metrics.
 6. **Safety & Guidance FIFO Alert Queue Inspector**: View and drain buffered real-time safety advisories.
-7. **Automated Algorithmic Test Suite**: Runs self-verifying unit tests for all mathematical, matrix, queue, and FSM components.
+7. **Reference Demo Pose Benchmark & Form Accuracy Comparison Lab**: Side-by-side comparison of active Demo Pose targets against real-time user angles, Euclidean distances, and dynamic form coaching.
+8. **Automated Algorithmic Test Suite**: Runs 8 self-verifying unit tests for vector math, spatial radar, FIFO queue, dynamic history, fatigue rules, and Demo Pose accuracy engine.
+9. **Exit**: Clean shutdown and memory deallocation.

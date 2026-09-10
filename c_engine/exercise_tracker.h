@@ -13,6 +13,7 @@
 #include "alert_queue.h"
 #include "rep_history.h"
 #include "fatigue_engine.h"
+#include "demo_pose.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -23,7 +24,8 @@ typedef enum {
     EXERCISE_BICEP_CURL = 0,   /**< Shoulder -> Elbow -> Wrist angle */
     EXERCISE_SQUAT,            /**< Hip -> Knee -> Ankle angle */
     EXERCISE_SHOULDER_PRESS,   /**< Hip -> Shoulder -> Elbow & Elbow -> Wrist */
-    EXERCISE_PUSHUP            /**< Shoulder -> Elbow -> Wrist & Body alignment */
+    EXERCISE_PUSHUP,           /**< Shoulder -> Elbow -> Wrist & Body alignment */
+    EXERCISE_PLANK             /**< Isometric core hold & 90° elbow foundation */
 } ExerciseType;
 
 /* Biomechanical Rep State Machine Phases */
@@ -76,6 +78,13 @@ typedef struct {
     double live_form_score_pct;
     double live_velocity_deg_per_sec;
     
+    /* Demo Pose & Form Accuracy Engine Integration */
+    const DemoPose* active_demo_pose;
+    FormAccuracyReport last_form_report;
+    Point2D last_joint_a;
+    Point2D last_joint_b;
+    Point2D last_joint_c;
+
     /* Subsystems integration */
     AlertQueue* alert_queue;
     RepHistoryList* history;

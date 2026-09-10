@@ -6,7 +6,7 @@ CC ?= gcc
 CFLAGS ?= -O2 -Wall -Wextra -std=c99 -pedantic
 LDFLAGS ?= -lm
 
-MODULE_SRCS = main.c aurafit_app.c vector_math.c spatial_matrix.c alert_queue.c rep_history.c fatigue_engine.c exercise_tracker.c
+MODULE_SRCS = main.c aurafit_app.c demo_pose.c vector_math.c spatial_matrix.c alert_queue.c rep_history.c fatigue_engine.c exercise_tracker.c
 STANDALONE_SRC = aurafit_standalone.c
 
 all: aurafit_modular aurafit_standalone

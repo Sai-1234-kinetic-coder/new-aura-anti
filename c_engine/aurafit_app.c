@@ -131,6 +131,67 @@ static void generate_mock_squat_frame(double cycle_progress, double jitter,
     out_hip->is_valid = true;
 }
 
+/**
+ * @brief Generates synthetic landmark kinematics for Pushups (Shoulder -> Elbow -> Wrist).
+ */
+static void generate_mock_pushup_frame(double cycle_progress, double jitter,
+                                       Point2D* out_shoulder, Point2D* out_elbow, Point2D* out_wrist) {
+    /* Wrist fixed to deck */
+    out_wrist->x = 0.38;
+    out_wrist->y = 0.80;
+    out_wrist->confidence = 0.99f;
+    out_wrist->is_valid = true;
+
+    /* Cycle: Top extension (165 deg) down to bottom inflection (90 deg) */
+    double sine_phase = sin(cycle_progress * 2.0 * M_PI - (M_PI / 2.0));
+    double norm_pos = (sine_phase + 1.0) / 2.0;
+    double target_angle_deg = 165.0 - (norm_pos * 75.0);
+
+    if (jitter > 0.0) {
+        double r = ((double)rand() / (double)RAND_MAX) - 0.5;
+        target_angle_deg += (r * jitter);
+    }
+
+    out_elbow->x = 0.38;
+    out_elbow->y = 0.65;
+    out_elbow->confidence = 0.98f;
+    out_elbow->is_valid = true;
+
+    double angle_rad = DEG_TO_RAD(target_angle_deg);
+    double humerus_len = 0.20;
+    out_shoulder->x = out_elbow->x + humerus_len * cos(angle_rad);
+    out_shoulder->y = out_elbow->y - humerus_len * sin(angle_rad);
+    out_shoulder->confidence = 0.97f;
+    out_shoulder->is_valid = true;
+}
+
+/**
+ * @brief Generates synthetic landmark kinematics for Plank Core Hold (Elbow 90 deg foundation).
+ */
+static void generate_mock_plank_frame(double cycle_progress, double jitter,
+                                      Point2D* out_shoulder, Point2D* out_elbow, Point2D* out_wrist) {
+    out_wrist->x = 0.45;
+    out_wrist->y = 0.72;
+    out_wrist->confidence = 0.99f;
+    out_wrist->is_valid = true;
+
+    out_elbow->x = 0.30;
+    out_elbow->y = 0.72;
+    out_elbow->confidence = 0.98f;
+    out_elbow->is_valid = true;
+
+    double angle_deg = 90.0;
+    if (jitter > 0.0) {
+        double r = ((double)rand() / (double)RAND_MAX) - 0.5;
+        angle_deg += (r * jitter * 0.4);
+    }
+
+    out_shoulder->x = 0.30;
+    out_shoulder->y = 0.55 + (sin(cycle_progress * 4.0 * M_PI) * 0.005);
+    out_shoulder->confidence = 0.98f;
+    out_shoulder->is_valid = true;
+}
+
 void aurafit_run_live_simulation(AuraFitSystem* sys, ExerciseType ex_type, int rep_goal, bool simulate_fatigue) {
     if (!sys) return;
 
@@ -191,6 +252,10 @@ void aurafit_run_live_simulation(AuraFitSystem* sys, ExerciseType ex_type, int r
 
         if (ex_type == EXERCISE_SQUAT) {
             generate_mock_squat_frame(current_rep_fraction, jitter, &p_a, &p_b, &p_c);
+        } else if (ex_type == EXERCISE_PUSHUP) {
+            generate_mock_pushup_frame(current_rep_fraction, jitter, &p_a, &p_b, &p_c);
+        } else if (ex_type == EXERCISE_PLANK) {
+            generate_mock_plank_frame(current_rep_fraction, jitter, &p_a, &p_b, &p_c);
         } else {
             generate_mock_bicep_curl_frame(current_rep_fraction, jitter, &p_a, &p_b, &p_c);
         }
@@ -518,9 +583,108 @@ void aurafit_run_automated_tests(void) {
         printf("  [FAIL] Test 6: Dynamic Fatigue Scaling Rule Failed\n");
     }
 
+    /* Test 7: Demo Pose Euclidean Distance & Exact Benchmark Match */
+    total++;
+    const DemoPose* pushup_demo = demo_pose_get_benchmark(DEMO_POSE_PUSHUP_BOTTOM);
+    Point2D p1 = { .x = 0.38, .y = 0.50, .is_valid = true };
+    Point2D p2 = { .x = 0.38, .y = 0.65, .is_valid = true };
+    double d = demo_pose_calc_euclidean_distance(p1, p2);
+    
+    FormAccuracyReport rep_perfect;
+    demo_pose_evaluate_form(pushup_demo, pushup_demo->target_joint_a, pushup_demo->target_joint_b,
+                            pushup_demo->target_joint_c, pushup_demo->target_spine_ref,
+                            90.0, &rep_perfect);
+
+    if (fabs(d - 0.15) < 1e-5 && rep_perfect.composite_accuracy_pct >= 95.0) {
+        printf("  [PASS] Test 7: Demo Pose Euclidean Distance (d=%.2f) & 100%% Benchmark Accuracy (Score: %.1f%%)\n",
+               d, rep_perfect.composite_accuracy_pct);
+        passed++;
+    } else {
+        printf("  [FAIL] Test 7: Demo Pose Benchmark Evaluation Failed\n");
+    }
+
+    /* Test 8: Dynamic Form Guidance & Angular Deviation Detection */
+    total++;
+    FormAccuracyReport rep_shallow;
+    demo_pose_evaluate_form(pushup_demo, pushup_demo->target_joint_a, pushup_demo->target_joint_b,
+                            pushup_demo->target_joint_c, pushup_demo->target_spine_ref,
+                            125.0, /* 35 deg shallower than 90 deg target */
+                            &rep_shallow);
+
+    if (rep_shallow.composite_accuracy_pct < 80.0 && strstr(rep_shallow.guidance_message, "Lower your chest")) {
+        printf("  [PASS] Test 8: Dynamic Form Guidance (Score: %.1f%%, Guidance: \"%s\")\n",
+               rep_shallow.composite_accuracy_pct, rep_shallow.guidance_message);
+        passed++;
+    } else {
+        printf("  [FAIL] Test 8: Dynamic Coaching Guidance Rule Failed\n");
+    }
+
     printf("\n  ---------------------------------------------------------------\n");
     printf("  TEST RESULTS: %d / %d TEST CASES PASSED (100.0%% Success Rate)\n", passed, total);
     printf("  ===============================================================\n\n");
+}
+
+void aurafit_run_demo_pose_comparison_lab(void) {
+    printf("\n  +===================================================================+\n");
+    printf("  |     REFERENCE DEMO POSE BENCHMARK & REAL-TIME FORM ACCURACY LAB   |\n");
+    printf("  +===================================================================+\n");
+    printf("  Select Benchmark Demo Pose:\n");
+    printf("    1) Pushup (Bottom Inflection 90 deg Elbow Flexion)\n");
+    printf("    2) Pushup (Top Extension 165 deg Lockout)\n");
+    printf("    3) Squat (Parallel Depth 85 deg Knee Flexion)\n");
+    printf("    4) Squat (Standing Extension 170 deg Lockout)\n");
+    printf("    5) Plank (Isometric Core Hold 90 deg Elbow Base)\n");
+    printf("    6) Bicep Curl (Peak Contraction 45 deg Flexion)\n");
+    printf("  Choice [1-6]: ");
+
+    int p_choice = 1;
+    if (scanf("%d", &p_choice) != 1) p_choice = 1;
+    if (p_choice < 1 || p_choice > 6) p_choice = 1;
+
+    DemoPoseID demo_id = (DemoPoseID)(p_choice - 1);
+    const DemoPose* demo = demo_pose_get_benchmark(demo_id);
+
+    printf("\n  Select Evaluation Scenario:\n");
+    printf("    1) Perfect Execution (Exact Match with Demo Pose Targets)\n");
+    printf("    2) Partial Range of Motion (Insufficient Angle Depth)\n");
+    printf("    3) Spine Misalignment (Sagging Hips / Poor Core Tension)\n");
+    printf("    4) Custom User Joint Angle & Coordinate Input\n");
+    printf("  Choice [1-4]: ");
+
+    int s_choice = 1;
+    if (scanf("%d", &s_choice) != 1) s_choice = 1;
+
+    Point2D user_a = demo->target_joint_a;
+    Point2D user_b = demo->target_joint_b;
+    Point2D user_c = demo->target_joint_c;
+    Point2D user_spine = demo->target_spine_ref;
+    double user_angle = demo->target_primary_angle_deg;
+
+    if (s_choice == 1) {
+        user_angle = demo->target_primary_angle_deg + 1.2;
+        user_b.x += 0.005;
+        user_b.y += 0.003;
+    } else if (s_choice == 2) {
+        user_angle = demo->target_primary_angle_deg + 25.0;
+        user_b.y += 0.04;
+        user_a.y += 0.03;
+    } else if (s_choice == 3) {
+        user_angle = demo->target_primary_angle_deg + 5.0;
+        user_spine.y += 0.12;
+    } else if (s_choice == 4) {
+        printf("\n  Enter Real-Time User Joint Angle in degrees (Target: %.1f deg): ", demo->target_primary_angle_deg);
+        if (scanf("%lf", &user_angle) != 1) user_angle = demo->target_primary_angle_deg;
+
+        printf("  Enter User Vertex Coordinate X [0.0 - 1.0] (Target: %.2f): ", demo->target_joint_b.x);
+        if (scanf("%lf", &user_b.x) != 1) user_b.x = demo->target_joint_b.x;
+
+        printf("  Enter User Vertex Coordinate Y [0.0 - 1.0] (Target: %.2f): ", demo->target_joint_b.y);
+        if (scanf("%lf", &user_b.y) != 1) user_b.y = demo->target_joint_b.y;
+    }
+
+    FormAccuracyReport report;
+    demo_pose_evaluate_form(demo, user_a, user_b, user_c, user_spine, user_angle, &report);
+    demo_pose_print_comparison_hud(&report);
 }
 
 void aurafit_run_interactive_menu(AuraFitSystem* sys) {
@@ -531,16 +695,17 @@ void aurafit_run_interactive_menu(AuraFitSystem* sys) {
         printf("\n  +===================================================================+\n");
         printf("  |        AURAFIT: AI-POWERED POSE & SPATIAL SAFETY ENGINE (C)       |\n");
         printf("  +===================================================================+\n");
-        printf("  | 1) Live Interactive Workout Simulation (Bicep Curls / Squats)    |\n");
-        printf("  | 2) Spatial Environment Density Matrix Scanner & Radar            |\n");
-        printf("  | 3) Biomechanical Vector Math & Joint Angle Calculation Lab       |\n");
-        printf("  | 4) Dynamic Fatigue Scaling & Target Rep Adjuster Demo            |\n");
-        printf("  | 5) View Completed Workout Rep History & Analytics Report         |\n");
-        printf("  | 6) Inspect Real-Time Safety & Guidance FIFO Alert Queue          |\n");
-        printf("  | 7) Run Automated Algorithmic Test & Verification Suite           |\n");
-        printf("  | 8) Exit AuraFit System                                            |\n");
+        printf("  | 1) Live Interactive Workout Simulation (Pushup / Squat / Plank)   |\n");
+        printf("  | 2) Spatial Environment Density Matrix Scanner & Radar             |\n");
+        printf("  | 3) Biomechanical Vector Math & Joint Angle Calculation Lab        |\n");
+        printf("  | 4) Dynamic Fatigue Scaling & Target Rep Adjuster Demo             |\n");
+        printf("  | 5) View Completed Workout Rep History & Analytics Report          |\n");
+        printf("  | 6) Inspect Real-Time Safety & Guidance FIFO Alert Queue           |\n");
+        printf("  | 7) Reference Demo Pose Benchmark & Form Accuracy Comparison Lab   |\n");
+        printf("  | 8) Run Automated Algorithmic Test & Verification Suite            |\n");
+        printf("  | 9) Exit AuraFit System                                            |\n");
         printf("  +===================================================================+\n");
-        printf("  Select an Option [1-8]: ");
+        printf("  Select an Option [1-9]: ");
 
         if (scanf("%d", &choice) != 1) {
             choice = 0;
@@ -552,16 +717,20 @@ void aurafit_run_interactive_menu(AuraFitSystem* sys) {
                 int ex_choice = 1;
                 int reps = 8;
                 int fatigue_mode = 1;
-                printf("\n  Select Exercise Type:\n   1) Bicep Curls\n   2) Squats\n  Choice: ");
+                printf("\n  Select Exercise Type:\n   1) Push-ups (90 deg bottom)\n   2) Squats (85 deg depth)\n   3) Plank (Isometric Core Hold)\n   4) Bicep Curls\n  Choice [1-4]: ");
                 if (scanf("%d", &ex_choice) != 1) ex_choice = 1;
 
-                printf("  Enter Target Reps (e.g. 8): ");
+                printf("  Enter Target Reps / Hold Cycles (e.g. 8): ");
                 if (scanf("%d", &reps) != 1 || reps <= 0) reps = 8;
 
                 printf("  Simulate Progressive Fatigue Scaling? (1 = Yes, 0 = No): ");
                 if (scanf("%d", &fatigue_mode) != 1) fatigue_mode = 1;
 
-                ExerciseType ex_t = (ex_choice == 2) ? EXERCISE_SQUAT : EXERCISE_BICEP_CURL;
+                ExerciseType ex_t = EXERCISE_PUSHUP;
+                if (ex_choice == 2) ex_t = EXERCISE_SQUAT;
+                else if (ex_choice == 3) ex_t = EXERCISE_PLANK;
+                else if (ex_choice == 4) ex_t = EXERCISE_BICEP_CURL;
+
                 aurafit_run_live_simulation(sys, ex_t, reps, fatigue_mode != 0);
                 break;
             }
@@ -587,16 +756,20 @@ void aurafit_run_interactive_menu(AuraFitSystem* sys) {
                 break;
 
             case 7:
-                aurafit_run_automated_tests();
+                aurafit_run_demo_pose_comparison_lab();
                 break;
 
             case 8:
+                aurafit_run_automated_tests();
+                break;
+
+            case 9:
                 printf("\n  Shutting down AuraFit Engine. Clean memory deallocation completed.\n");
                 sys->is_running = false;
                 break;
 
             default:
-                printf("\n  [!] Invalid selection. Please enter a valid menu number between 1 and 8.\n");
+                printf("\n  [!] Invalid selection. Please enter a valid menu number between 1 and 9.\n");
                 break;
         }
     }
