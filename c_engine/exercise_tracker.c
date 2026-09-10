@@ -128,13 +128,14 @@ bool tracker_process_landmarks(ExerciseTracker* tracker,
     tracker->raw_angle_deg = raw;
 
     /* Filter angle using exponential moving average */
+    double prev_angle = tracker->smoothed_angle_deg;
     double angle = angle_smoother_update(&tracker->smoother, raw);
     tracker->smoothed_angle_deg = angle;
 
     /* Calculate angular velocity */
     double dt = current_time_sec - tracker->last_frame_time_sec;
     if (dt > 1e-4 && tracker->last_frame_time_sec > 0.0) {
-        tracker->live_velocity_deg_per_sec = fabs(angle - tracker->smoother.filtered_angle) / dt;
+        tracker->live_velocity_deg_per_sec = fabs(angle - prev_angle) / dt;
     }
     tracker->last_frame_time_sec = current_time_sec;
 

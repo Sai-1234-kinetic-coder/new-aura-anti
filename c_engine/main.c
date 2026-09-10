@@ -9,6 +9,7 @@
 #include "aurafit_app.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 int main(int argc, char* argv[]) {
     /* If --test flag passed, execute automated tests directly */

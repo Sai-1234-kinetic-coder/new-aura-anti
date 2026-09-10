@@ -167,7 +167,6 @@ void aurafit_run_live_simulation(AuraFitSystem* sys, ExerciseType ex_type, int r
     int total_frames = (int)(total_sim_time / frame_dt);
 
     Point2D p_a, p_b, p_c;
-    int last_reported_rep = 0;
 
     for (int frame = 0; frame < total_frames; ++frame) {
         current_time += frame_dt;
@@ -208,7 +207,6 @@ void aurafit_run_live_simulation(AuraFitSystem* sys, ExerciseType ex_type, int r
         if (completed) {
             printf("\n  >>> [EVENT] REP #%d CONFIRMED! (Form Score: %.1f%%) <<<\n",
                    sys->tracker->completed_reps, sys->tracker->live_form_score_pct);
-            last_reported_rep = sys->tracker->completed_reps;
             platform_sleep_ms(150);
 
             /* Check if adjusted target goal reached */
