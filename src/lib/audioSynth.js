@@ -233,3 +233,15 @@ class AudioSynthEngine {
 }
 
 export const audioSynth = new AudioSynthEngine();
+
+// Auto-unlock AudioContext on mobile (Android/iOS) touch or click
+if (typeof window !== 'undefined') {
+  const unlockAudio = () => {
+    audioSynth.init();
+    window.removeEventListener('click', unlockAudio);
+    window.removeEventListener('touchstart', unlockAudio);
+  };
+  window.addEventListener('click', unlockAudio, { passive: true, once: true });
+  window.addEventListener('touchstart', unlockAudio, { passive: true, once: true });
+}
+

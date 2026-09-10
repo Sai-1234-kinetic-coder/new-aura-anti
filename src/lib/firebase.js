@@ -1,5 +1,11 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { 
+  getAuth, 
+  GoogleAuthProvider, 
+  signInWithPopup, 
+  RecaptchaVerifier, 
+  signInWithPhoneNumber 
+} from "firebase/auth";
 import { 
   getFirestore, 
   doc, 
@@ -63,15 +69,35 @@ export async function signInWithGoogle() {
   return await signInWithPopup(auth, provider);
 }
 
+// Phone OTP Authentication
+export function setupPhoneRecaptcha(containerId = "recaptcha-container") {
+  if (!auth) throw new Error("Firebase Auth is running in smart local offline mode.");
+  if (window.recaptchaVerifier) {
+    try { window.recaptchaVerifier.clear(); } catch (e) {}
+  }
+  window.recaptchaVerifier = new RecaptchaVerifier(auth, containerId, {
+    size: 'invisible',
+    callback: () => {}
+  });
+  return window.recaptchaVerifier;
+}
+
+export async function sendPhoneOtp(phoneNumber, appVerifier) {
+  if (!auth) throw new Error("Firebase Auth is running in smart local offline mode.");
+  return await signInWithPhoneNumber(auth, phoneNumber, appVerifier);
+}
+
 // ---------------------------------------------------------------------------
 // User Profiles
 // ---------------------------------------------------------------------------
 
-export async function createUserProfile(userId, email, department = "CSE", displayName = "") {
+export async function createUserProfile(userId, emailOrPhone, department = "CSE", displayName = "") {
   if (!userId) return;
+  const isPhone = Boolean(emailOrPhone && (emailOrPhone.startsWith("+") || /^\d+$/.test(emailOrPhone)));
   const profile = {
-    email,
-    displayName: displayName || email.split("@")[0],
+    email: isPhone ? "" : (emailOrPhone || ""),
+    phoneNumber: isPhone ? emailOrPhone : "",
+    displayName: displayName || (isPhone ? `Athlete ${emailOrPhone.slice(-4)}` : (emailOrPhone ? emailOrPhone.split("@")[0] : "Campus Athlete")),
     department: department.toUpperCase(),
     totalPoints: 0,
     squatCount: 0,

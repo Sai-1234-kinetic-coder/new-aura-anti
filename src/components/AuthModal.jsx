@@ -3,13 +3,24 @@ import {
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword 
 } from 'firebase/auth';
-import { auth, createUserProfile, signInWithGoogle } from '../lib/firebase';
-import { ShieldCheck, UserPlus, LogIn, Sparkles, Building2, Zap, Globe } from 'lucide-react';
+import { 
+  auth, 
+  createUserProfile, 
+  signInWithGoogle,
+  setupPhoneRecaptcha,
+  sendPhoneOtp
+} from '../lib/firebase';
+import { ShieldCheck, UserPlus, LogIn, Sparkles, Building2, Zap, Globe, Phone, Mail, KeyRound } from 'lucide-react';
 
 export default function AuthModal({ onClose, onGuestLogin }) {
+  const [authMethod, setAuthMethod] = useState('email'); // 'email' | 'phone'
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [confirmationResult, setConfirmationResult] = useState(null);
+  const [otpSent, setOtpSent] = useState(false);
   const [department, setDepartment] = useState('CSE');
   const [name, setName] = useState('');
   const [error, setError] = useState('');
@@ -126,6 +137,71 @@ export default function AuthModal({ onClose, onGuestLogin }) {
     } catch (err) {
       console.warn("Google Sign-In note:", err);
       setError(err?.message || "Google sign-in could not be completed.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSendOtp = async (e) => {
+    e?.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      if (!phoneNumber || phoneNumber.trim().length < 8) {
+        throw new Error("Please enter a valid phone number with country code (e.g., +91 9876543210).");
+      }
+      const cleaned = phoneNumber.trim();
+      const formatted = cleaned.startsWith('+') ? cleaned : `+91${cleaned}`;
+      
+      if (!auth) {
+        // Fallback for offline mode
+        const localUid = 'phone_athlete_' + Date.now();
+        await createUserProfile(localUid, formatted, department, name || `Athlete ${formatted.slice(-4)}`);
+        if (onGuestLogin) {
+          onGuestLogin({
+            uid: localUid,
+            phoneNumber: formatted,
+            displayName: name || `Athlete ${formatted.slice(-4)}`,
+            department: department.toUpperCase(),
+            totalPoints: 140,
+            currentStreak: 1
+          });
+        }
+        onClose();
+        return;
+      }
+
+      const appVerifier = setupPhoneRecaptcha('recaptcha-container');
+      const confirmation = await sendPhoneOtp(formatted, appVerifier);
+      setConfirmationResult(confirmation);
+      setOtpSent(true);
+    } catch (err) {
+      console.error("Phone OTP Error:", err);
+      setError(err?.message || "Failed to send SMS OTP. Please ensure phone authentication is active.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e) => {
+    e?.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      if (!otpCode || otpCode.trim().length < 4) {
+        throw new Error("Please enter the SMS verification code received.");
+      }
+      if (!confirmationResult) {
+        throw new Error("No active OTP session. Please request a new code.");
+      }
+      const res = await confirmationResult.confirm(otpCode.trim());
+      if (res?.user) {
+        await createUserProfile(res.user.uid, res.user.phoneNumber, department, name || `Athlete ${res.user.phoneNumber.slice(-4)}`);
+      }
+      onClose();
+    } catch (err) {
+      console.error("OTP Verification Error:", err);
+      setError(err?.message || "Invalid or expired SMS verification code.");
     } finally {
       setLoading(false);
     }
@@ -255,106 +331,268 @@ export default function AuthModal({ onClose, onGuestLogin }) {
           Continue with Google
         </button>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-          <div style={{ flex: 1, height: '1px', background: 'var(--border-color)' }}></div>
-          <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>or with email</span>
-          <div style={{ flex: 1, height: '1px', background: 'var(--border-color)' }}></div>
+        {/* Auth Method Selector Tabs */}
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+          <button
+            type="button"
+            onClick={() => { setAuthMethod('email'); setError(''); }}
+            className={`btn ${authMethod === 'email' ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ 
+              flex: 1, 
+              padding: '8px', 
+              fontSize: '12px', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              gap: '6px',
+              background: authMethod === 'email' ? 'linear-gradient(135deg, #10b981, #059669)' : 'rgba(255, 255, 255, 0.05)',
+              color: '#fff',
+              border: authMethod === 'email' ? '1px solid #34d399' : '1px solid rgba(255, 255, 255, 0.1)'
+            }}
+          >
+            <Mail size={14} /> Email Sign-In
+          </button>
+          <button
+            type="button"
+            onClick={() => { setAuthMethod('phone'); setError(''); }}
+            className={`btn ${authMethod === 'phone' ? 'btn-cyan' : 'btn-secondary'}`}
+            style={{ 
+              flex: 1, 
+              padding: '8px', 
+              fontSize: '12px', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              gap: '6px',
+              background: authMethod === 'phone' ? 'linear-gradient(135deg, #06b6d4, #0284c7)' : 'rgba(255, 255, 255, 0.05)',
+              color: '#fff',
+              border: authMethod === 'phone' ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.1)'
+            }}
+          >
+            <Phone size={14} /> Phone OTP
+          </button>
         </div>
 
-        {/* Auth Form */}
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {isSignUp && (
+        {/* reCAPTCHA Anchor for Phone Auth */}
+        <div id="recaptcha-container"></div>
+
+        {authMethod === 'email' ? (
+          /* Email & Password Form */
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {isSignUp && (
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                  Full Name:
+                </label>
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  placeholder="e.g., Aarav Sharma"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                />
+              </div>
+            )}
+
             <div>
               <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                Full Name:
+                Campus Email:
               </label>
               <input 
-                type="text" 
+                type="email" 
                 className="form-input" 
-                placeholder="e.g., Aarav Sharma"
-                value={name}
-                onChange={e => setName(e.target.value)}
+                placeholder="student@college.edu"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
               />
             </div>
-          )}
 
-          <div>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-              Campus Email:
-            </label>
-            <input 
-              type="email" 
-              className="form-input" 
-              placeholder="student@college.edu"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              required
-            />
-          </div>
-
-          <div>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-              Password:
-            </label>
-            <input 
-              type="password" 
-              className="form-input" 
-              placeholder="••••••••"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              required
-            />
-          </div>
-
-          {isSignUp && (
             <div>
               <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                <Building2 size={13} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />
-                Your Department / Branch:
+                Password:
               </label>
-              <select 
-                className="form-select"
-                value={department}
-                onChange={e => setDepartment(e.target.value)}
-              >
-                <option value="CSE">CSE — Computer Science & Engineering</option>
-                <option value="ECE">ECE — Electronics & Communication</option>
-                <option value="EEE">EEE — Electrical & Electronics</option>
-                <option value="MECH">MECH — Mechanical Engineering</option>
-                <option value="IT">IT — Information Technology</option>
-                <option value="CIVIL">CIVIL — Civil Engineering</option>
-              </select>
+              <input 
+                type="password" 
+                className="form-input" 
+                placeholder="••••••••"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+              />
             </div>
-          )}
 
-          <button 
-            type="submit" 
-            disabled={loading}
-            className="btn btn-primary"
-            style={{ width: '100%', padding: '11px', marginTop: '4px', fontSize: '14px' }}
-          >
-            {loading ? "Processing..." : (isSignUp ? "Sign Up & Join Dept" : "Sign In to Dashboard")}
-          </button>
-        </form>
+            {isSignUp && (
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                  <Building2 size={13} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />
+                  Your Department / Branch:
+                </label>
+                <select 
+                  className="form-select"
+                  value={department}
+                  onChange={e => setDepartment(e.target.value)}
+                >
+                  <option value="CSE">CSE — Computer Science & Engineering</option>
+                  <option value="ECE">ECE — Electronics & Communication</option>
+                  <option value="EEE">EEE — Electrical & Electronics</option>
+                  <option value="MECH">MECH — Mechanical Engineering</option>
+                  <option value="IT">IT — Information Technology</option>
+                  <option value="CIVIL">CIVIL — Civil Engineering</option>
+                </select>
+              </div>
+            )}
 
-        {/* Toggle Switch & Close */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '14px' }}>
-          <button 
-            type="button"
-            onClick={() => { setIsSignUp(!isSignUp); setError(''); }}
-            style={{ background: 'none', border: 'none', color: '#38bdf8', fontSize: '12px', cursor: 'pointer', textDecoration: 'underline' }}
-          >
-            {isSignUp ? "Already registered? Sign In" : "New student? Create Account"}
-          </button>
+            <button 
+              type="submit" 
+              disabled={loading}
+              className="btn btn-primary"
+              style={{ width: '100%', padding: '11px', marginTop: '4px', fontSize: '14px' }}
+            >
+              {loading ? "Processing..." : (isSignUp ? "Sign Up & Join Dept" : "Sign In to Dashboard")}
+            </button>
 
-          <button 
-            type="button"
-            onClick={onClose}
-            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '12px', cursor: 'pointer' }}
-          >
-            Cancel
-          </button>
-        </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
+              <button 
+                type="button"
+                onClick={() => { setIsSignUp(!isSignUp); setError(''); }}
+                style={{ background: 'none', border: 'none', color: '#38bdf8', fontSize: '12px', cursor: 'pointer', textDecoration: 'underline' }}
+              >
+                {isSignUp ? "Already registered? Sign In" : "New student? Create Account"}
+              </button>
+              <button 
+                type="button"
+                onClick={onClose}
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '12px', cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        ) : (
+          /* Phone OTP Form */
+          <form onSubmit={otpSent ? handleVerifyOtp : handleSendOtp} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {!otpSent ? (
+              <>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                    Full Name (Optional):
+                  </label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    placeholder="e.g., Aarav Sharma"
+                    value={name}
+                    onChange={e => setName(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                    <Phone size={13} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />
+                    Mobile Number (with country code):
+                  </label>
+                  <input 
+                    type="tel" 
+                    className="form-input" 
+                    placeholder="+91 9876543210"
+                    value={phoneNumber}
+                    onChange={e => setPhoneNumber(e.target.value)}
+                    required
+                  />
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px', display: 'block' }}>
+                    Include country code (+91 for India, +1 for US).
+                  </span>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                    <Building2 size={13} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />
+                    Department / Branch:
+                  </label>
+                  <select 
+                    className="form-select"
+                    value={department}
+                    onChange={e => setDepartment(e.target.value)}
+                  >
+                    <option value="CSE">CSE — Computer Science & Engineering</option>
+                    <option value="ECE">ECE — Electronics & Communication</option>
+                    <option value="EEE">EEE — Electrical & Electronics</option>
+                    <option value="MECH">MECH — Mechanical Engineering</option>
+                    <option value="IT">IT — Information Technology</option>
+                    <option value="CIVIL">CIVIL — Civil Engineering</option>
+                  </select>
+                </div>
+
+                <button 
+                  type="submit" 
+                  disabled={loading}
+                  className="btn btn-cyan"
+                  style={{ width: '100%', padding: '11px', marginTop: '4px', fontSize: '14px' }}
+                >
+                  {loading ? "Sending SMS OTP..." : "Send Verification OTP"}
+                </button>
+              </>
+            ) : (
+              <>
+                <div style={{
+                  background: 'rgba(6, 182, 212, 0.1)',
+                  border: '1px solid rgba(6, 182, 212, 0.3)',
+                  padding: '10px 14px',
+                  borderRadius: 'var(--radius-sm)',
+                  fontSize: '12px',
+                  color: '#67e8f9'
+                }}>
+                  OTP sent to <strong>{phoneNumber}</strong>. Please enter the 6-digit code below:
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                    <KeyRound size={13} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />
+                    6-Digit SMS Code:
+                  </label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    placeholder="123456"
+                    value={otpCode}
+                    onChange={e => setOtpCode(e.target.value)}
+                    maxLength={6}
+                    required
+                    style={{ letterSpacing: '4px', fontSize: '18px', textAlign: 'center' }}
+                  />
+                </div>
+
+                <button 
+                  type="submit" 
+                  disabled={loading}
+                  className="btn btn-primary"
+                  style={{ width: '100%', padding: '11px', marginTop: '4px', fontSize: '14px' }}
+                >
+                  {loading ? "Verifying..." : "Verify & Enter Dashboard"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setOtpSent(false); setOtpCode(''); }}
+                  style={{ background: 'none', border: 'none', color: '#38bdf8', fontSize: '12px', cursor: 'pointer', textAlign: 'center' }}
+                >
+                  ← Change phone number
+                </button>
+              </>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginTop: '6px' }}>
+              <button 
+                type="button"
+                onClick={onClose}
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '12px', cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        )}
 
       </div>
     </div>

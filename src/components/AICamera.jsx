@@ -68,6 +68,8 @@ export default function AICamera({
   const poseEngineRef = useRef(null);
   const lastLandmarksRef = useRef(null);
   const [isMediaPipeActive, setIsMediaPipeActive] = useState(false);
+  const [facingMode, setFacingMode] = useState('user'); // 'user' | 'environment'
+  const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   const [mirrorVideo, setMirrorVideo] = useState(() => {
     return typeof localStorage !== 'undefined' ? localStorage.getItem('aurafit_mirror_video') !== 'false' : true;
   });
@@ -117,8 +119,9 @@ export default function AICamera({
     if (holdTimerRef.current) clearInterval(holdTimerRef.current);
   };
 
-  // Initialize Webcam Stream with progressive constraint fallback
-  const initWebcam = useCallback(async () => {
+  // Initialize Webcam Stream with progressive mobile and desktop fallback
+  const initWebcam = useCallback(async (targetFacingMode) => {
+    const desiredFacing = targetFacingMode || facingMode;
     setCameraError('');
     if (!navigator?.mediaDevices?.getUserMedia) {
       setCameraError("Webcam not supported in this browser. You can use 'Execute Form Rep' to test all AI posture scoring features.");
@@ -134,12 +137,20 @@ export default function AICamera({
       videoRef.current.srcObject = null;
     }
 
+    const isMob = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     const constraintTiers = [
-      // Tier 1: Ideal user-facing camera with 640x480 resolution
-      { video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' }, audio: false },
-      // Tier 2: Basic user-facing camera without resolution constraints
-      { video: { facingMode: 'user' }, audio: false },
-      // Tier 3: Any available video camera (vital for USB webcams & Windows desktop cams)
+      // Tier 1: Device-optimized resolution & preferred facing mode
+      { 
+        video: { 
+          width: { ideal: isMob ? 480 : 640 }, 
+          height: { ideal: isMob ? 640 : 480 }, 
+          facingMode: { ideal: desiredFacing } 
+        }, 
+        audio: false 
+      },
+      // Tier 2: Any matching facing mode without resolution constraints
+      { video: { facingMode: { ideal: desiredFacing } }, audio: false },
+      // Tier 3: Any available video camera (vital for Android & USB desktop cams)
       { video: true, audio: false }
     ];
 
@@ -152,10 +163,6 @@ export default function AICamera({
         if (stream) break;
       } catch (err) {
         lastError = err;
-        // If user explicitly denied permission, break immediately
-        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-          break;
-        }
       }
     }
 
@@ -177,18 +184,28 @@ export default function AICamera({
     } else {
       let message = "Camera access unavailable.";
       if (lastError?.name === 'NotAllowedError' || lastError?.name === 'PermissionDeniedError') {
-        message = "Camera permission was blocked. Please click the 🔒 icon in the browser address bar, set Camera to 'Allow', and click 'Retry Camera'.";
+        message = isMob
+          ? "Camera permission was blocked. On Android Chrome: Tap 3 dots (⋮) > Settings > Site settings > Camera > Unblock this site, then tap 'Retry Camera Access'."
+          : "Camera permission was blocked. Please click the 🔒 icon in the browser address bar, set Camera to 'Allow', and click 'Retry Camera'.";
       } else if (lastError?.name === 'NotFoundError' || lastError?.name === 'DevicesNotFoundError') {
-        message = "No webcam hardware detected. You can use 'Execute Form Rep' to test all posture scoring features.";
+        message = "No camera hardware detected. You can use 'Execute Form Rep' to test all posture scoring features.";
       } else if (lastError?.name === 'NotReadableError' || lastError?.name === 'TrackStartError') {
-        message = "Webcam is in use by another application (Zoom/Teams/browser tab). Please close other apps and click Retry.";
+        message = "Camera is in use by another application. Please close other camera apps and click Retry.";
       } else if (lastError?.message) {
         message = `Camera notice: ${lastError.message}`;
       }
       setCameraError(message);
       setCameraActive(false);
     }
-  }, []);
+  }, [facingMode]);
+
+  // Flip Camera (Front / Rear) for mobile
+  const handleFlipCamera = () => {
+    const nextMode = facingMode === 'user' ? 'environment' : 'user';
+    setFacingMode(nextMode);
+    setMirrorVideo(nextMode === 'user');
+    initWebcam(nextMode);
+  };
 
   useEffect(() => {
     initWebcam();
@@ -655,8 +672,19 @@ export default function AICamera({
           </div>
         </div>
 
-        {/* Voice Coach & Save Session */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        {/* Voice Coach, Flip Camera & Save Session */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          {/* Flip Camera Button (Front / Rear for Android & iOS) */}
+          <button
+            onClick={handleFlipCamera}
+            className="btn btn-secondary"
+            style={{ padding: '8px 12px', fontSize: '12px' }}
+            title={`Switch to ${facingMode === 'user' ? 'Back' : 'Front'} Camera`}
+          >
+            <RefreshCw size={14} />
+            <span>{facingMode === 'user' ? 'Rear Cam' : 'Front Cam'}</span>
+          </button>
+
           <button
             onClick={() => setVoiceEnabled(!voiceEnabled)}
             className={`btn ${voiceEnabled ? 'btn-cyan' : 'btn-secondary'}`}
@@ -680,7 +708,15 @@ export default function AICamera({
       </div>
 
       {/* Exercise Mode Selection Bar */}
-      <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
+      <div style={{ 
+        display: 'flex', 
+        gap: '8px', 
+        overflowX: 'auto', 
+        paddingBottom: '8px',
+        WebkitOverflowScrolling: 'touch',
+        scrollbarWidth: 'none',
+        touchAction: 'pan-x'
+      }}>
         {Object.keys(VISION_EXERCISES).map((key) => {
           const ex = VISION_EXERCISES[key];
           const isSelected = exerciseType === key;
@@ -701,7 +737,7 @@ export default function AICamera({
       {/* Camera Viewport & Live Overlay */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))',
         gap: '20px'
       }}>
         
@@ -710,7 +746,9 @@ export default function AICamera({
           position: 'relative',
           padding: '0',
           overflow: 'hidden',
-          aspectRatio: '4 / 3',
+          aspectRatio: isMobile ? '3 / 4' : '4 / 3',
+          minHeight: isMobile ? '340px' : 'auto',
+          maxHeight: isMobile ? '68vh' : 'auto',
           background: '#070a12',
           display: 'flex',
           alignItems: 'center',
@@ -750,13 +788,14 @@ export default function AICamera({
           {!cameraActive && (
             <div style={{ 
               textAlign: 'center', 
-              padding: '28px 24px', 
+              padding: '24px 20px', 
               maxWidth: '440px',
-              background: 'rgba(11, 15, 25, 0.85)',
+              background: 'rgba(11, 15, 25, 0.9)',
               backdropFilter: 'blur(12px)',
               border: '1px solid rgba(255, 255, 255, 0.1)',
               borderRadius: '16px',
-              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+              margin: '12px'
             }}>
               <div style={{
                 width: '52px',
@@ -774,12 +813,32 @@ export default function AICamera({
               <h4 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '8px', color: '#fff' }}>
                 {cameraError ? 'Webcam Initialization Notice' : 'Camera Ready to Connect'}
               </h4>
-              <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.6', margin: '0 0 18px' }}>
+              <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.6', margin: '0 0 14px' }}>
                 {cameraError || "AuraFit runs 100% on-device MediaPipe vision. Your video stream is never recorded or transmitted to any server."}
               </p>
+
+              {isMobile && cameraError && (
+                <div style={{
+                  background: 'rgba(56, 189, 248, 0.08)',
+                  border: '1px solid rgba(56, 189, 248, 0.25)',
+                  borderRadius: '8px',
+                  padding: '10px 12px',
+                  fontSize: '11px',
+                  color: '#93c5fd',
+                  textAlign: 'left',
+                  marginBottom: '14px',
+                  lineHeight: '1.5'
+                }}>
+                  📱 <strong>Android Chrome Unblock Quick Guide:</strong>
+                  <br />1. Tap <strong>3 dots (⋮)</strong> at top-right &rarr; <strong>Settings</strong>
+                  <br />2. Tap <strong>Site settings</strong> &rarr; <strong>Camera</strong>
+                  <br />3. Under "Blocked", tap this website and change to <strong>Allow</strong>
+                </div>
+              )}
+
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
                 <button
-                  onClick={initWebcam}
+                  onClick={() => initWebcam()}
                   className="btn btn-primary"
                   style={{ padding: '9px 18px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}
                 >
