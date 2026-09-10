@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { VISION_EXERCISES, evaluatePostureFaults, calculateJointAngle } from '../lib/poseMath';
 import { audioSynth } from '../lib/audioSynth';
+import { PoseEngine } from '../lib/poseEngine';
 
 export default function AICamera({ 
   onBack, 
@@ -71,6 +72,7 @@ export default function AICamera({
   const poseEngineRef = useRef(null);
   const lastLandmarksRef = useRef(null);
   const [isMediaPipeActive, setIsMediaPipeActive] = useState(false);
+  const [poseEngineType, setPoseEngineType] = useState(null); // 'mediapipe' | 'movenet' | null
   const [facingMode, setFacingMode] = useState('user'); // 'user' | 'environment'
   const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   const [mirrorVideo, setMirrorVideo] = useState(() => {
@@ -444,54 +446,39 @@ export default function AICamera({
     }
   }, [exerciseType, activeExercise, updateAngleAndEvaluate]);
 
-  // Initialize MediaPipe Pose Instance
+  // Initialise Pose Engine (MediaPipe → MoveNet fallback)
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const setupPose = () => {
-      if (!window.Pose) return false;
-      try {
-        const pose = new window.Pose({
-          locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
-        });
-
-        pose.setOptions({
-          modelComplexity: 0,
-          smoothLandmarks: true,
-          enableSegmentation: false,
-          minDetectionConfidence: 0.5,
-          minTrackingConfidence: 0.5
-        });
-
-        pose.onResults((results) => {
-          if (results.poseLandmarks && results.poseLandmarks.length > 0) {
-            lastLandmarksRef.current = results.poseLandmarks;
-            setIsMediaPipeActive(true);
-            evaluatePoseFromLandmarks(results.poseLandmarks);
-          } else {
-            lastLandmarksRef.current = null;
-          }
-        });
-
-        poseEngineRef.current = pose;
+    const engine = new PoseEngine();
+    engine.setOptions({
+      modelComplexity:        0,
+      smoothLandmarks:        true,
+      enableSegmentation:     false,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence:  0.5,
+    });
+    engine.onResults((results) => {
+      if (results.poseLandmarks && results.poseLandmarks.length > 0) {
+        lastLandmarksRef.current = results.poseLandmarks;
         setIsMediaPipeActive(true);
-        return true;
-      } catch (e) {
-        console.warn("MediaPipe Pose load note:", e);
-        return false;
+        evaluatePoseFromLandmarks(results.poseLandmarks);
+      } else {
+        lastLandmarksRef.current = null;
       }
-    };
+    });
 
-    if (!setupPose()) {
-      const pollTimer = setInterval(() => {
-        if (setupPose()) clearInterval(pollTimer);
-      }, 600);
-      return () => clearInterval(pollTimer);
-    }
+    // Async init: MediaPipe or MoveNet fallback
+    engine.init().then(() => {
+      poseEngineRef.current = engine;
+      setPoseEngineType(engine.engineType);
+      setIsMediaPipeActive(true);
+    });
 
     return () => {
       if (poseEngineRef.current) {
-        try { poseEngineRef.current.close(); } catch (e) {}
+        poseEngineRef.current.close();
+        poseEngineRef.current = null;
       }
     };
   }, [evaluatePoseFromLandmarks]);
@@ -572,9 +559,9 @@ export default function AICamera({
           }
         });
 
-        // Draw glowing joint keypoints
+        // Draw glowing joint keypoints (null guard: MoveNet leaves some slots null)
         realLandmarks.forEach((pt, idx) => {
-          if (idx >= 11 && idx <= 28 && (pt.visibility || 1) > 0.4) {
+          if (pt && idx >= 11 && idx <= 28 && (pt.visibility || 1) > 0.4) {
             ctx.beginPath();
             ctx.arc(pt.x * w, pt.y * h, 5, 0, Math.PI * 2);
             ctx.fillStyle = isGood ? '#38bdf8' : '#fb7185';
@@ -708,7 +695,11 @@ export default function AICamera({
               </h2>
               <span className="badge badge-dept" style={{ fontSize: '10px' }}>Chamber 2</span>
               <span className={`badge ${isMediaPipeActive ? 'badge-streak' : 'badge-dept'}`} style={{ fontSize: '10px' }}>
-                {isMediaPipeActive ? '⚡ MediaPipe 33-Point Vision' : 'AI Vision'}
+                {poseEngineType === 'mediapipe'
+                  ? '⚡ MediaPipe 33-Pt'
+                  : poseEngineType === 'movenet'
+                  ? '⚡ MoveNet Lightning'
+                  : isMediaPipeActive ? '⚡ AI Vision' : 'Loading Engine…'}
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--text-muted)' }}>
