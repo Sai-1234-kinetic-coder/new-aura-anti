@@ -254,7 +254,7 @@ export default function BuddyFinder({ user }) {
                 <div
                   key={req.id}
                   style={{
-                    background: '#0b0f19',
+                    background: 'var(--bg-inset)',
                     padding: '16px',
                     borderRadius: 'var(--radius-md)',
                     border: '1px solid var(--border-color)',
@@ -426,7 +426,7 @@ export default function BuddyFinder({ user }) {
                       </div>
 
                       {/* Sport & Timing Specs */}
-                      <div style={{ background: '#0b0f19', padding: '10px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', marginBottom: '10px' }}>
+                      <div style={{ background: 'var(--bg-inset)', padding: '10px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', marginBottom: '10px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
                           <span style={{ color: 'var(--text-muted)' }}>Sport</span>
                           <strong style={{ color: '#38bdf8' }}>{buddy.sport}</strong>

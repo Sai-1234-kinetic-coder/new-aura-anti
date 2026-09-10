@@ -209,7 +209,7 @@ export default function AuraCoach({ userProfile }) {
       <div className="glass-card" style={{
         padding: '24px 28px',
         borderLeft: '4px solid #a855f7',
-        background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.95), rgba(168, 85, 247, 0.08))',
+        background: 'linear-gradient(135deg, #ffffff, #f8fafc)',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
@@ -245,8 +245,8 @@ export default function AuraCoach({ userProfile }) {
 
         {/* Live Context Telemetry Pill */}
         <div style={{
-          background: '#0b0f19',
-          border: '1px solid rgba(168, 85, 247, 0.3)',
+          background: 'var(--bg-inset)',
+          border: '1px solid var(--border-color)',
           borderRadius: 'var(--radius-sm)',
           padding: '8px 14px',
           display: 'flex',
@@ -346,8 +346,8 @@ export default function AuraCoach({ userProfile }) {
 
                 <div style={{
                   maxWidth: '80%',
-                  background: isBot ? '#0b0f19' : 'linear-gradient(135deg, #10b981, #059669)',
-                  color: isBot ? 'var(--text-primary)' : '#061c14',
+                  background: isBot ? 'var(--bg-inset)' : 'linear-gradient(135deg, #10b981, #059669)',
+                  color: isBot ? 'var(--text-primary)' : '#ffffff',
                   padding: '14px 18px',
                   borderRadius: isBot ? '4px 16px 16px 16px' : '16px 4px 16px 16px',
                   border: isBot ? '1px solid var(--border-color)' : 'none',
@@ -359,7 +359,7 @@ export default function AuraCoach({ userProfile }) {
                       <div>{renderMarkdownContent(msg.text)}</div>
                     ) : (
                       <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                        AuraCoach is synthesizing response...
+                         AuraCoach is synthesizing response...
                       </span>
                     )
                   ) : (
@@ -367,7 +367,7 @@ export default function AuraCoach({ userProfile }) {
                   )}
                   <div style={{
                     fontSize: '10px',
-                    color: isBot ? 'var(--text-muted)' : 'rgba(6, 28, 20, 0.7)',
+                    color: isBot ? 'var(--text-muted)' : 'rgba(255, 255, 255, 0.8)',
                     marginTop: '6px',
                     textAlign: 'right'
                   }}>
@@ -380,11 +380,11 @@ export default function AuraCoach({ userProfile }) {
                     width: '32px',
                     height: '32px',
                     borderRadius: '8px',
-                    background: '#1e293b',
+                    background: '#e2e8f0',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#f8fafc',
+                    color: '#0f172a',
                     flexShrink: 0
                   }}>
                     <User size={18} />

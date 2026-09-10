@@ -147,7 +147,7 @@ export default function SettingsModal({ isOpen, onClose, onSettingsUpdated }) {
     <div style={{
       position: 'fixed',
       inset: 0,
-      background: 'rgba(3, 7, 18, 0.82)',
+      background: 'rgba(15, 23, 42, 0.45)',
       backdropFilter: 'blur(12px)',
       zIndex: 9999,
       display: 'flex',
@@ -159,11 +159,11 @@ export default function SettingsModal({ isOpen, onClose, onSettingsUpdated }) {
         width: '100%',
         maxWidth: '560px',
         borderRadius: 'var(--radius-lg)',
-        border: '1px solid rgba(56, 189, 248, 0.3)',
-        background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.98), rgba(15, 23, 42, 0.98))',
+        border: '1px solid var(--border-color)',
+        background: '#ffffff',
         padding: '28px',
         position: 'relative',
-        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)'
+        boxShadow: 'var(--shadow-card)'
       }}>
         
         {/* Header */}

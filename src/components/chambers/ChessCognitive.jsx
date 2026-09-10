@@ -284,7 +284,7 @@ export default function ChessCognitive({ onPointsEarned }) {
       <div className="glass-card" style={{
         padding: '24px 28px',
         borderLeft: '4px solid #38bdf8',
-        background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.95), rgba(56, 189, 248, 0.08))',
+        background: 'linear-gradient(135deg, #ffffff, #f8fafc)',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
@@ -535,7 +535,7 @@ export default function ChessCognitive({ onPointsEarned }) {
             </div>
 
             {/* Stats Breakdown Strip */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', background: '#0b0f19', padding: '12px', borderRadius: 'var(--radius-sm)', textAlign: 'center' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', background: 'var(--bg-inset)', padding: '12px', borderRadius: 'var(--radius-sm)', textAlign: 'center' }}>
               <div>
                 <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Victories</div>
                 <div style={{ fontSize: '16px', fontWeight: '800', color: '#10b981' }}>{chessProfile.wins}</div>
@@ -546,7 +546,7 @@ export default function ChessCognitive({ onPointsEarned }) {
               </div>
               <div>
                 <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Puzzles Solved</div>
-                <div style={{ fontSize: '16px', fontWeight: '800', color: '#fbbf24' }}>{chessProfile.puzzlesSolved}</div>
+                <div style={{ fontSize: '16px', fontWeight: '800', color: '#d97706' }}>{chessProfile.puzzlesSolved}</div>
               </div>
             </div>
           </div>
@@ -556,7 +556,7 @@ export default function ChessCognitive({ onPointsEarned }) {
             <div className="glass-card" style={{ padding: '20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                 <h3 style={{ fontSize: '15px', fontWeight: '700', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Trophy size={16} color="#fbbf24" />
+                  <Trophy size={16} color="#d97706" />
                   Tactical Challenge: {currentPuzzle.title}
                 </h3>
                 <span className="badge badge-xp" style={{ fontSize: '10px' }}>+{currentPuzzle.xpReward} XP</span>
@@ -589,7 +589,7 @@ export default function ChessCognitive({ onPointsEarned }) {
             </h4>
 
             <div style={{
-              background: '#0b0f19',
+              background: 'var(--bg-inset)',
               borderRadius: 'var(--radius-sm)',
               padding: '10px 14px',
               maxHeight: '130px',

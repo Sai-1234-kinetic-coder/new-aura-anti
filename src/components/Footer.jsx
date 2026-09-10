@@ -5,8 +5,8 @@ export default function Footer({ setActiveTab }) {
   return (
     <footer style={{
       marginTop: '60px',
-      borderTop: '1px solid rgba(56, 189, 248, 0.15)',
-      background: 'rgba(11, 15, 25, 0.95)',
+      borderTop: '1px solid var(--border-color)',
+      background: 'var(--bg-secondary)',
       backdropFilter: 'blur(16px)',
       padding: '40px 20px 28px',
       color: 'var(--text-secondary)'

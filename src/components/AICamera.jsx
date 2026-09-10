@@ -1033,19 +1033,19 @@ export default function AICamera({
             </h4>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#0b0f19', borderRadius: '4px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: 'var(--bg-inset)', borderRadius: '4px' }}>
                 <span style={{ color: 'var(--text-secondary)' }}>Target Joint Flexibility:</span>
                 <strong style={{ color: '#10b981' }}>{activeExercise.targetGoal}</strong>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#0b0f19', borderRadius: '4px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: 'var(--bg-inset)', borderRadius: '4px' }}>
                 <span style={{ color: 'var(--text-secondary)' }}>Form Deviations Flagged:</span>
                 <strong style={{ color: faultBreakdown.misalignment > 0 ? '#fb7185' : '#10b981' }}>
                   {faultBreakdown.misalignment}
                 </strong>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#0b0f19', borderRadius: '4px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: 'var(--bg-inset)', borderRadius: '4px' }}>
                 <span style={{ color: 'var(--text-secondary)' }}>Rep Cadence Audio:</span>
                 <strong style={{ color: voiceEnabled ? '#38bdf8' : 'var(--text-muted)' }}>
                   {voiceEnabled ? 'Active Voice Synthesis' : 'Muted'}

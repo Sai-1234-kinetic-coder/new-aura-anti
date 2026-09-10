@@ -49,11 +49,11 @@ export default function Navbar({
     <header className="glass-card" style={{ 
       marginBottom: '24px', 
       padding: '12px 20px', 
-      borderBottom: '1px solid rgba(56, 189, 248, 0.2)',
+      borderBottom: '1px solid var(--border-color)',
       position: 'sticky',
       top: '12px',
       zIndex: 1000,
-      background: 'rgba(17, 24, 39, 0.92)',
+      background: 'var(--bg-glass)',
       backdropFilter: 'blur(20px)'
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px' }}>
@@ -132,7 +132,7 @@ export default function Navbar({
           {user ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <div style={{ 
-                background: '#0b0f19', 
+                background: 'var(--bg-inset)', 
                 padding: '6px 12px', 
                 borderRadius: 'var(--radius-full)', 
                 border: '1px solid var(--border-color)',

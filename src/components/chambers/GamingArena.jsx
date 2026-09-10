@@ -140,7 +140,7 @@ export default function GamingArena({ userProfile, onLaunchCamera, onOpenLeaderb
       <div className="glass-card" style={{
         padding: '24px 28px',
         borderLeft: '4px solid #f43f5e',
-        background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.95), rgba(244, 63, 94, 0.08))',
+        background: 'linear-gradient(135deg, #ffffff, #f8fafc)',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
@@ -387,8 +387,8 @@ export default function GamingArena({ userProfile, onLaunchCamera, onOpenLeaderb
           <div className="glass-card" style={{
             padding: '30px',
             textAlign: 'center',
-            background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.95), rgba(244, 63, 94, 0.15))',
-            border: '1px solid rgba(244, 63, 94, 0.4)',
+            background: 'linear-gradient(135deg, #ffffff, #fff1f2)',
+            border: '1px solid rgba(244, 63, 94, 0.3)',
             position: 'relative',
             overflow: 'hidden'
           }}>
@@ -397,7 +397,7 @@ export default function GamingArena({ userProfile, onLaunchCamera, onOpenLeaderb
               <span className="badge badge-xp">+200 XP REWARD</span>
             </div>
 
-            <h2 style={{ fontSize: '28px', fontWeight: '900', letterSpacing: '-0.02em', margin: '4px 0' }}>
+            <h2 style={{ fontSize: '28px', fontWeight: '900', letterSpacing: '-0.02em', margin: '4px 0', color: 'var(--text-primary)' }}>
               The Fatigue Titan 👹
             </h2>
             <p style={{ fontSize: '13px', color: 'var(--text-muted)', maxWidth: '520px', margin: '0 auto 20px' }}>
@@ -408,9 +408,9 @@ export default function GamingArena({ userProfile, onLaunchCamera, onOpenLeaderb
             <div style={{ maxWidth: '500px', margin: '0 auto 10px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: '800', marginBottom: '6px' }}>
                 <span style={{ color: '#f43f5e' }}>TITAN HEALTH</span>
-                <span style={{ color: '#ffffff' }}>{bossHp} / {maxBossHp} HP</span>
+                <span style={{ color: 'var(--text-primary)' }}>{bossHp} / {maxBossHp} HP</span>
               </div>
-              <div style={{ height: '14px', background: '#0b0f19', borderRadius: 'var(--radius-full)', overflow: 'hidden', border: '1px solid rgba(244, 63, 94, 0.3)' }}>
+              <div style={{ height: '14px', background: '#e2e8f0', borderRadius: 'var(--radius-full)', overflow: 'hidden', border: '1px solid rgba(244, 63, 94, 0.3)' }}>
                 <div style={{
                   height: '100%',
                   width: `${(bossHp / maxBossHp) * 100}%`,

@@ -100,7 +100,7 @@ export default function MetabolicTrainer({ user, userProfile, onLaunchCamera }) 
       <div className="glass-card" style={{
         padding: '24px 28px',
         borderLeft: '4px solid #10b981',
-        background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.95), rgba(16, 185, 129, 0.08))',
+        background: 'linear-gradient(135deg, #ffffff, #f8fafc)',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
@@ -441,7 +441,7 @@ export default function MetabolicTrainer({ user, userProfile, onLaunchCamera }) 
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
               {/* Protein */}
-              <div style={{ background: '#0b0f19', padding: '12px', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid #10b981' }}>
+              <div style={{ background: 'var(--bg-inset)', padding: '12px', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid #10b981' }}>
                 <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Protein</div>
                 <div style={{ fontSize: '18px', fontWeight: '800', color: '#10b981' }}>
                   {metrics.macros.proteinGrams}g
@@ -452,7 +452,7 @@ export default function MetabolicTrainer({ user, userProfile, onLaunchCamera }) 
               </div>
 
               {/* Carbs */}
-              <div style={{ background: '#0b0f19', padding: '12px', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid #06b6d4' }}>
+              <div style={{ background: 'var(--bg-inset)', padding: '12px', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid #06b6d4' }}>
                 <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Complex Carbs</div>
                 <div style={{ fontSize: '18px', fontWeight: '800', color: '#06b6d4' }}>
                   {metrics.macros.carbGrams}g
@@ -463,9 +463,9 @@ export default function MetabolicTrainer({ user, userProfile, onLaunchCamera }) 
               </div>
 
               {/* Healthy Fats */}
-              <div style={{ background: '#0b0f19', padding: '12px', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid #f59e0b' }}>
+              <div style={{ background: 'var(--bg-inset)', padding: '12px', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid #d97706' }}>
                 <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Healthy Fats</div>
-                <div style={{ fontSize: '18px', fontWeight: '800', color: '#f59e0b' }}>
+                <div style={{ fontSize: '18px', fontWeight: '800', color: '#d97706' }}>
                   {metrics.macros.fatGrams}g
                 </div>
                 <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
@@ -524,7 +524,7 @@ export default function MetabolicTrainer({ user, userProfile, onLaunchCamera }) 
             <div
               key={idx}
               style={{
-                background: '#0b0f19',
+                background: 'var(--bg-inset)',
                 border: `1px solid ${activeDietTab === 'prioritize' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(244, 63, 94, 0.25)'}`,
                 borderRadius: 'var(--radius-sm)',
                 padding: '14px',

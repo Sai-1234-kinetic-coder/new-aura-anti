@@ -99,9 +99,9 @@ export default function LandingHero({ setActiveTab, onOpenAuth, user }) {
         padding: '36px 28px',
         position: 'relative',
         overflow: 'hidden',
-        background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.95), rgba(15, 23, 42, 0.88))',
-        border: '1px solid rgba(56, 189, 248, 0.3)',
-        boxShadow: '0 20px 40px -15px rgba(0, 0, 0, 0.7)'
+        background: 'linear-gradient(135deg, #ffffff, #f8fafc)',
+        border: '1px solid var(--border-color)',
+        boxShadow: 'var(--shadow-card)'
       }}>
         {/* Ambient Glows */}
         <div style={{
