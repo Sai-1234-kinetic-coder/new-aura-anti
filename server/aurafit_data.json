@@ -1,0 +1,73 @@
+{
+  "athletes": {
+    "seed_1": {
+      "user_id": "seed_1",
+      "display_name": "Aarav Sharma",
+      "department": "CSE",
+      "total_points": 340,
+      "squat_count": 34,
+      "current_streak": 14,
+      "sport": "Gym / Squats",
+      "buddy_opt_in": true,
+      "hostel": "Boys Hostel 2"
+    },
+    "seed_2": {
+      "user_id": "seed_2",
+      "display_name": "Priya Mukherjee",
+      "department": "ECE",
+      "total_points": 290,
+      "squat_count": 29,
+      "current_streak": 19,
+      "sport": "Running",
+      "buddy_opt_in": true,
+      "hostel": "Girls Hostel 1"
+    },
+    "seed_3": {
+      "user_id": "seed_3",
+      "display_name": "Rohan Kulkarni",
+      "department": "CSE",
+      "total_points": 260,
+      "squat_count": 26,
+      "current_streak": 8,
+      "sport": "Yoga",
+      "buddy_opt_in": true,
+      "hostel": "Boys Hostel 1"
+    },
+    "seed_4": {
+      "user_id": "seed_4",
+      "display_name": "Ananya Verma",
+      "department": "ECE",
+      "total_points": 210,
+      "squat_count": 21,
+      "current_streak": 15,
+      "sport": "Yoga",
+      "buddy_opt_in": true,
+      "hostel": "Girls Hostel 3"
+    },
+    "seed_5": {
+      "user_id": "seed_5",
+      "display_name": "Neha Patel",
+      "department": "EEE",
+      "total_points": 190,
+      "squat_count": 19,
+      "current_streak": 12,
+      "sport": "Gym / Squats",
+      "buddy_opt_in": true,
+      "hostel": "Girls Hostel 1"
+    },
+    "seed_6": {
+      "user_id": "seed_6",
+      "display_name": "Aditya Verma",
+      "department": "MECH",
+      "total_points": 120,
+      "squat_count": 12,
+      "current_streak": 6,
+      "sport": "Gym / Squats",
+      "buddy_opt_in": true,
+      "hostel": "Boys Hostel 1"
+    }
+  },
+  "workouts": [],
+  "daily_logs": {},
+  "buddy_requests": []
+}

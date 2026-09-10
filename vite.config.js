@@ -7,6 +7,12 @@ export default defineConfig({
   server: {
     host: true, // listen on all network interfaces
     port: 5173,
-    allowedHosts: true // allow tunnels and custom hostnames
+    allowedHosts: true, // allow tunnels and custom hostnames
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5000',
+        changeOrigin: true
+      }
+    }
   }
 });
